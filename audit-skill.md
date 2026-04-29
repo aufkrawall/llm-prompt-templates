@@ -5,7 +5,9 @@ Copyright (c) 2026 aufkrawall
 
 # Codebase Code and Binary Quality Audit Template
 
-Perform a thorough audit of the entire codebase and generated binaries where applicable. Spawn multiple sub-agents to read the codebase where useful to avoid context-window limits.
+Perform a thorough audit of the entire codebase and generated binaries where applicable.
+
+If safe and suitable, spawn multiple sub-agents to read the codebase to avoid hitting context-window limits of the main agent.
 
 Default mode: audit only. Do not change source code, tests, build files, configs, generated files, documentation, project assets, binaries, or any other project files unless implementation is explicitly requested.
 
@@ -17,7 +19,7 @@ If `audit/` does not exist, create it. If `audit/code-audit-report.md` already e
 
 If the user provides a specific output path, use that path.
 
-If in agent plan mode that prevents regular file writes, write the audit report file as an agent plan that can be implemented after switching to agent code mode.
+If in agent plan mode that prevents file writes to project path, write the audit report file as an agent internal plan document or memory and request switching to code mode to implement it.
 
 Do not create separate JSON, notes, findings, evidence, summary, or auxiliary files unless explicitly asked. The single audit report must contain the executive summary, scorecard, detailed findings, implementation plan, implementation rules, and verification checklist.
 
