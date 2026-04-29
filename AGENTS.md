@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+Copyright (c) 2026 aufkrawall
+-->
+
 ## Most important:
 
 - Always compile with `python build.py` after any code changes!
