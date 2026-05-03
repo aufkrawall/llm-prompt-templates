@@ -60,7 +60,13 @@ Copyright (c) 2026 aufkrawall
 
 ## Windows debugging and binary analysis tools
 
-Prefer these installed Windows tools for `.dmp`, symbol, PE/COFF, Sysinternals, and media/capture analysis. The paths below reflect the current tool report; versioned Visual Studio/MSVC components may still vary after toolchain updates.
+- When analyzing crash dumps, use the correct symbol path that includes both the Microsoft symbol server AND the local PDB directory:
+```
+cdb -z crash.dmp -y "srv*;%USERPROFILE%\Programme\build\captureproject\installed\captureengine" -c ".ecxr; k; q"
+```
+The `srv*`-only path misses CE's local PDBs and produces incomplete stack traces.
+
+- Installed Windows tools for `.dmp`, symbol, PE/COFF, Sysinternals, and media/capture analysis. The paths below reflect the current tool report; versioned Visual Studio/MSVC components may still vary after toolchain updates.
 
 | Tool | Purpose | Installed/default path |
 | --- | --- | --- |
