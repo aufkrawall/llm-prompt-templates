@@ -10,13 +10,13 @@ Copyright (c) 2026 aufkrawall
 - Windows-first project: prefer PowerShell 7.6, Windows-native paths, and installed project tools unless there is a clear reason not to!
 - After code changes, run `python build.py --skip-updates`; do not use `python build.py --version`!
 - Always git commit after code changes!
-- Before committing, run relevant tests/unit tests and ensure build/test results succeed!
+- Before committing, run relevant tests/unit tests and ensure build/test results succeed.
 - Commit completed code changes with plain git commands only: `git status`, `git add -A`, `git commit -m "<message>"`!
 - Do not push to cloud unless explicitly requested, generally just commit locally!
 - Always consult `llm-wiki/` for code, bug, build, test, config, debugging, or behavior work!
 - Keep `llm-wiki/` linted / quality-checked and updated when durable project knowledge changes!
 - Always update `llm-wiki/` after code changes!
-- Mistrust code, code annotations and llm-wiki! Each of them might be stale or outdated! Come to your on conclusion and act based on that!
+- Mistrust code, code annotations and llm-wiki! Each of them might be stale or outdated! Come to your own conclusion and act based on that!
 - When fixing a bug or implementing a feature, generally always add new regression test units, or adjust existing ones!
 - When fixing a bug or implementing a feature, generally always increase or improve debug logging to make bug diagnosis easier!
 
@@ -41,10 +41,11 @@ Copyright (c) 2026 aufkrawall
 - Switching between FG modes must work gracefully both in Talos and GTA validation scenarios: in all directions/combinations, no crashes, no lost overlay rendering, and correct visible FG status!
 - The overlay must not be suspended unnecessarily long, also not during FG switching transitions!
 - Ideally, the overlay never gets visibly suspended / does never disappear, not even temporarily!
+- Inject, overlay etc. must work optimally and gracefully also when other overlay injects like Steam, Rockstar Social etc. are active at the same time!
 
 ## Build, diagnostics, and tests
 
-- Fix pre-existing, as well as introduced LSP errors/warnings along they way!
+- Fix pre-existing, as well as newly introduced LSP errors/warnings along they way!
 - We are paranoid about having sufficient regression tests, better too many than too few!
 - Add focused regression tests where possible, especially tests that would have failed before the fix!
 - If no regression-test infrastructure exists for the area, consider adding suitable unit infrastructure such as GoogleTest!
@@ -60,7 +61,8 @@ Copyright (c) 2026 aufkrawall
 
 ## Windows debugging and binary analysis tools
 
-- When analyzing crash dumps, use the correct symbol path that includes both the Microsoft symbol server AND the local PDB directory:
+- Always analyze available .dmp crash dumps when they exist!
+Use the correct symbol path that includes both the Microsoft symbol server AND the local PDB directory:
 ```
 cdb -z crash.dmp -y "srv*;%USERPROFILE%\Programme\build\captureproject\installed\captureengine" -c ".ecxr; k; q"
 ```
