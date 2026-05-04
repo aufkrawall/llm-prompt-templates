@@ -57,7 +57,6 @@ Copyright (c) 2026 aufkrawall
 - We are paranoid about having sufficient debug logging!
 - Add additional debug logging when it helps diagnose issue root causes, state transitions, failure modes, unexpected runtime conditions, or future regressions!
 - Ensure builds preserve useful debug symbols etc. so crash dumps contain actionable information!
-- For media analysis, `ffmpeg.exe` and `ffprobe.exe` are in `%USERPROFILE%\Programme\build\captureproject\build\msys64\clang64\bin`.
 
 ## Windows debugging and binary analysis tools
 
