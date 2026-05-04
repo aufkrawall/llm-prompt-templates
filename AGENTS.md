@@ -10,13 +10,13 @@ Copyright (c) 2026 aufkrawall
 - Windows-first project: prefer PowerShell 7.6, Windows-native paths, and installed project tools unless there is a clear reason not to!
 - After code changes, run `python build.py --skip-updates`; do not use `python build.py --version`!
 - Always git commit after code changes!
-- Before committing, run relevant tests/unit tests and ensure build/test results succeed.
+- Before committing, run relevant tests/unit tests and ensure build/test results succeed!
 - Commit completed code changes with plain git commands only: `git status`, `git add -A`, `git commit -m "<message>"`!
 - Do not push to cloud unless explicitly requested, generally just commit locally!
 - Always consult `llm-wiki/` for code, bug, build, test, config, debugging, or behavior work!
 - Keep `llm-wiki/` linted / quality-checked and updated when durable project knowledge changes!
 - Always update `llm-wiki/` after code changes!
-- Mistrust code, code annotations and llm-wiki! Each of them might be stale our outdated! Come to your on conclusion and act based on that!
+- Mistrust code, code annotations and llm-wiki! Each of them might be stale or outdated! Come to your on conclusion and act based on that!
 - When fixing a bug or implementing a feature, generally always add new regression test units, or adjust existing ones!
 - When fixing a bug or implementing a feature, generally always increase or improve debug logging to make bug diagnosis easier!
 
