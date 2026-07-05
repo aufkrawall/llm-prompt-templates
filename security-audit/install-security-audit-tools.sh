@@ -1,7 +1,4 @@
 #!/usr/bin/env sh
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 aufkrawall
-
 # install-security-audit-tools.sh
 #
 # Conservative Linux/macOS security-audit tool detector and optional small-tool installer.

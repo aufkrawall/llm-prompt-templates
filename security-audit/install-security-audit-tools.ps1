@@ -1,6 +1,3 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 aufkrawall
-
 <# 
 .SYNOPSIS
   Installs or detects Windows security-audit/debugging tools referenced by debug-tools-security-audit.md.

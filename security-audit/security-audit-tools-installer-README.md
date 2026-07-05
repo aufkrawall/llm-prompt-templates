@@ -88,3 +88,37 @@ security-audit-tool-availability.md
 ```
 
 Audit reports should copy relevant warnings into the summary and reduce affected scorecard confidence.
+## Path correctness after running the Windows installer
+
+After running `install-security-audit-tools.ps1`, do not assume the example paths in `llm-wiki/debug-tools-security-audit.md` are the installed paths.
+
+The default PowerShell installer root is:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools
+```
+
+The generated manifest is the source of truth:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools\security-audit-tool-manifest.json
+```
+
+Default portable Sysinternals tools are installed under:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals
+```
+
+`vswhere.exe` is installed under:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools\bin\vswhere
+```
+
+Windows SDK Debugging Tools and MSVC tools are detected but not installed by default.
+## Project-specific diagnostics
+
+The DX12/DRED/debug-layer sections in `llm-wiki/debug-tools-security-audit.md` are conditional project-specific guidance. They are not generic security-audit requirements and should not affect scoring for unrelated projects.
+
+Apply them only when the audited project has DX12/D3D12/GPU/capture/hook/overlay behavior or when the audit question specifically concerns those diagnostics.

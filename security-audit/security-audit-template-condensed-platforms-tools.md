@@ -113,6 +113,17 @@ Before starting the audit, inspect the repository for local audit knowledge unde
 
 Treat these files as project-local audit guidance and tool inventories, not as authoritative proof that a tool is installed or usable.
 
+When `install-security-audit-tools.ps1` or `install-security-audit-tools.sh` has been run, treat the generated tool manifest as the first source of truth for actual tool paths. Do not assume that example paths in `llm-wiki/debug-tools-security-audit.md` are valid on the current machine.
+
+Tool path precedence:
+
+1. generated `security-audit-tool-manifest.json`
+2. local `tool-paths.env`
+3. shell/PATH discovery such as `Get-Command`, `where`, or `command -v`
+4. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
+5. safe fallbacks
+
+
 If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional and should follow its conservative defaults. The audit must still verify the resulting tool availability instead of assuming installation succeeded.
 
 
@@ -248,6 +259,24 @@ Both scripts should produce comparable evidence where possible:
 - coverage impact notes
 
 If only Windows tool evidence exists while Linux/macOS are supported targets, lower confidence for platform/architecture coverage, binary inspection, and tooling categories.
+
+
+### Project-specific diagnostics are conditional
+
+Local diagnostic guidance from `llm-wiki/debug-tools-security-audit.md` is conditional project-specific evidence, not a universal security-audit requirement.
+
+Examples include DX12/DRED/debug-layer diagnostics, media/capture tooling, GPU fault analysis, hook DLL inspection, overlay diagnostics, or other project-specific runtime instrumentation.
+
+Apply such guidance only when the audited project actually contains matching components, features, binaries, logs, dumps, captures, runtime behavior, or supported platforms.
+
+Rules:
+
+- Do not require DX12, DRED, D3D12 debug-layer, capture/media, hook, overlay, or GPU-device-removal diagnostics for unrelated projects.
+- Mark project-specific diagnostics as `N/A — not applicable` when the project does not contain the corresponding subsystem.
+- Do not reduce score or confidence for missing project-specific diagnostics unless the subsystem is in scope and relevant evidence is unavailable.
+- If project-specific diagnostics are relevant but unavailable, warn, explain what coverage was lost, and lower only the affected categories.
+- Treat project-specific logs, dumps, captures, DRED output, debug-layer output, and runtime traces as sensitive artifacts.
+- Diagnosis-only modes that change timing or behavior must not be treated as production security controls.
 
 
 ### Project-local tool discovery and availability validation
@@ -683,6 +712,7 @@ Answer directly:
 - Which areas appear acceptable and should not be changed unnecessarily?
 - Which scanner, sanitizer, fuzzer, LLM-review, manual-review, platform, and architecture coverage gaps most affect confidence?
 - Which local tool-inventory, debugging-tool, binary-inspection-tool, symbol/PDB, dump, log, and diagnostic-input gaps most affect confidence?
+- Which project-specific diagnostics were applicable, which were N/A, and which unavailable relevant diagnostics affected confidence?
 
 Do not assess out-of-scope release, deployment, packaging, signing, infrastructure, distribution, or operational-process readiness unless asked.
 
@@ -791,6 +821,7 @@ Verify, where applicable:
 - Missing, inaccessible, incompatible, or failed project-documented tools are warned about in the report.
 - Required dumps, binaries, symbols/PDBs, logs, captures, reproducers, and diagnostic inputs are available or explicitly marked unavailable.
 - Missing preferred tools or inputs are reflected in confidence and affected scores.
+- Project-specific diagnostics, including DX12/DRED/debug-layer guidance, were applied only when the corresponding subsystem was in scope; otherwise they were marked N/A without scoring penalty.
 - `security-audit-sast-addendum.md` was checked when present.
 - SAST, secrets scanning, and dependency scanning were run or explicitly marked unavailable/not applicable with confidence impact.
 - Linux/macOS tool availability was captured with comparable evidence to Windows when those targets are supported.
@@ -836,3 +867,5 @@ Verify, where applicable:
 - Public APIs, configs, persisted formats, feature flags, encoding/Unicode/locale behavior, platform expectations, and source-tree docs remain accurate and compatible unless a justified breaking change was made.
 - Unavailable local tools, binaries, dumps, symbols, logs, platform targets, and diagnostic inputs are listed with their impact on coverage, confidence, and scoring.
 - Out-of-scope CI/CD/signing/deployment/packaging/installer/infrastructure/distribution/operational-process checks were not scored unless requested.
+
+- Project-specific diagnostics such as DX12/DRED/debug-layer checks are scored only when the corresponding subsystem is in scope; otherwise mark them N/A and do not penalize.
