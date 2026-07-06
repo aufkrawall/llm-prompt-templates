@@ -715,3 +715,164 @@ WARNING: Linux/macOS binary hardening tools were unavailable; platform binary-in
 WARNING: macOS universal binary was shipped but individual slices were not inspected independently.
 WARNING: Linux dependency inspection used ldd only on a trusted local build artifact; do not use ldd on untrusted binaries.
 ```
+
+
+---
+
+## Exact tool path lookup after installer runs
+
+After running `install-security-audit-tools.ps1`, use the generated manifest as the first source of truth for paths.
+
+PowerShell examples:
+
+```powershell
+$manifestPath = Join-Path $env:LOCALAPPDATA 'SecurityAuditTools\security-audit-tool-manifest.json'
+$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$manifest.results | Sort-Object category, name | Format-Table name, category, status, path -AutoSize
+```
+
+Resolve one tool:
+
+```powershell
+$sigcheck = ($manifest.results | Where-Object { $_.name -eq 'sigcheck.exe' -and $_.path } | Select-Object -First 1).path
+& $sigcheck -m -i -h .\some-binary.exe
+```
+
+Default installed paths from `install-security-audit-tools.ps1`:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\procdump.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\sigcheck.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\strings.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\handle.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\listdlls.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sysinternals\vmmap.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\vswhere\vswhere.exe
+%LOCALAPPDATA%\SecurityAuditTools\bin\sast\...
+```
+
+Do not assume these directories are on `PATH` unless `-AddToUserPath` was used.
+
+### Required-tool gate
+
+The PowerShell installer supports a strict required-tool gate:
+
+```powershell
+.\install-security-audit-tools.ps1 -RequireTools semgrep,gitleaks,osv-scanner -StrictRequiredTools
+```
+
+Exit codes:
+
+```text
+0 = no warnings
+2 = completed with warnings
+3 = strict required-tool gate failed
+```
+
+Use strict mode only when the audit scope really requires those tools. Do not gate on irrelevant project-specific tools.
+
+### Windows SAST/secrets/dependency optional installs
+
+Default behavior installs portable, low-side-effect scanners where possible:
+
+
+```powershell
+.\install-security-audit-tools.ps1
+```
+
+Default install attempts:
+
+```text
+gitleaks
+osv-scanner
+```
+
+Python/pip-based tools are detected but not installed unless explicitly requested:
+
+```text
+semgrep
+flawfinder
+pip-audit
+```
+
+Install Python/pip-based tools explicitly:
+
+```powershell
+.\install-security-audit-tools.ps1 -IncludePythonSast
+```
+
+Conservative detector-only mode:
+
+```powershell
+.\install-security-audit-tools.ps1 -Minimal
+```
+
+Targeted opt-outs:
+
+```powershell
+.\install-security-audit-tools.ps1 -SkipSastInstall
+.\install-security-audit-tools.ps1 -SkipSecretsInstall
+.\install-security-audit-tools.ps1 -SkipDependencyScannerInstall
+```
+
+Additional opt-in tools:
+
+
+Individual opt-ins:
+
+```powershell
+.\install-security-audit-tools.ps1 -IncludeSemgrep
+.\install-security-audit-tools.ps1 -IncludeFlawfinder
+.\install-security-audit-tools.ps1 -IncludeGitleaks
+.\install-security-audit-tools.ps1 -IncludeTruffleHog
+.\install-security-audit-tools.ps1 -IncludeOSVScanner
+.\install-security-audit-tools.ps1 -IncludePipAudit
+.\install-security-audit-tools.ps1 -IncludeCodeQL
+```
+
+`CodeQL` is large and should remain explicitly opt-in.
+
+### Full and uninstall modes
+
+Full install mode:
+
+```powershell
+.\install-security-audit-tools.ps1 -Full
+```
+
+This opts into large, noisy, package-manager, and Python-based tools. It is intended for dedicated audit environments.
+
+Managed uninstall:
+
+```powershell
+.\install-security-audit-tools.ps1 -Uninstall
+```
+
+Full supported uninstall preview:
+
+```powershell
+.\install-security-audit-tools.ps1 -Uninstall -RemoveSharedPackages -RemovePythonPackages -WhatIfOnly
+```
+
+Full supported uninstall execution:
+
+```powershell
+.\install-security-audit-tools.ps1 -Uninstall -RemoveSharedPackages -RemovePythonPackages
+```
+
+Shared package removal can uninstall tools the user may have installed before this audit setup. Use it only when that is acceptable.
+
+### Full-mode path reliability
+
+When full mode installs winget packages, the current shell may not immediately see PATH changes. The installer checks known install directories after installation.
+
+Important known directories:
+
+```text
+C:\Program Files\LLVM\bin
+C:\Program Files (x86)\LLVM\bin
+%LOCALAPPDATA%\Programs\LLVM\bin
+%LOCALAPPDATA%\Microsoft\WindowsApps\WinDbgX.exe
+```
+
+If winget reports no upgrade or already-installed status, verify availability using `winget list --id <PackageId> -e` before treating it as a failure.

@@ -261,6 +261,86 @@ Both scripts should produce comparable evidence where possible:
 If only Windows tool evidence exists while Linux/macOS are supported targets, lower confidence for platform/architecture coverage, binary inspection, and tooling categories.
 
 
+
+
+Default Windows tool setup should install portable, low-side-effect scanners where possible, while keeping Python/pip-based, large, noisy, package-manager-heavy, or project-specific tools opt-in.
+
+Default Windows installs may include:
+
+- `gitleaks`
+- `osv-scanner`
+
+Default Windows detection should include, but not install unless explicitly requested:
+
+- `semgrep`
+- `flawfinder`
+- `pip-audit`
+
+Default Windows setup should keep these opt-in:
+
+- `CodeQL`
+- `trufflehog`
+- WinDbg
+- LLVM
+- FFmpeg
+- GUI Sysinternals
+- Python/pip-based scanners unless explicitly requested
+- toolchain-native scanners that require Rust/Go/Node toolchains unless already present
+
+A detector-only setup may be requested with `-Minimal` or skip flags. Missing default-install tools should still be reflected in tool availability evidence and confidence.
+
+
+### Explicit tool-path resolution and coverage gates
+
+Auditors and LLM agents must not guess tool paths.
+
+When tool detector output exists, resolve tools in this order:
+
+1. generated `security-audit-tool-manifest.json`
+2. `tool-paths.env`
+3. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
+4. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
+5. safe fallback tools
+
+If a tool appears in the manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
+
+Default coverage mode is advisory:
+
+- continue the audit
+- warn about missing applicable tools/artifacts
+- lower confidence
+- adjust affected scores
+
+
+Full setup mode may be requested for dedicated audit environments:
+
+```powershell
+.\install-security-audit-tools.ps1 -Full
+```
+
+Full mode is allowed to install large, package-manager, Python/pip-based, and project-specific diagnostic tools. Reports must identify that full mode was used and record any failed install attempts.
+
+Uninstall mode must be available for cleanup:
+
+```powershell
+.\install-security-audit-tools.ps1 -Uninstall
+```
+
+Shared package-manager installs and Python user packages should not be removed silently. Require explicit removal flags for shared packages and Python packages.
+
+
+Strict coverage mode is optional and must be requested explicitly. In strict mode, the audit should stop deeper analysis and produce a `Blocked` or prerequisite-failure report when required applicable tools, binaries, symbols, logs, dumps, platforms, or manifests are missing.
+
+Strict mode must not fail because optional or irrelevant tools are unavailable. Examples:
+
+- Missing DRED tools must not block a non-DX12 project.
+- Missing `pip-audit` must not block a non-Python project.
+- Missing `cargo-audit` must not block a non-Rust project.
+- Missing `procmon.exe` must not block unless runtime tracing is required for the audit question.
+
+If the user specifies required tools, enforce only those tools and any unavoidable prerequisites for the requested audit scope.
+
+
 ### Project-specific diagnostics are conditional
 
 Local diagnostic guidance from `llm-wiki/debug-tools-security-audit.md` is conditional project-specific evidence, not a universal security-audit requirement.
@@ -869,3 +949,9 @@ Verify, where applicable:
 - Out-of-scope CI/CD/signing/deployment/packaging/installer/infrastructure/distribution/operational-process checks were not scored unless requested.
 
 - Project-specific diagnostics such as DX12/DRED/debug-layer checks are scored only when the corresponding subsystem is in scope; otherwise mark them N/A and do not penalize.
+
+Full-mode tool detection must distinguish install failure from already-installed or no-upgrade package-manager states. If a package manager returns a non-zero code, verify package presence before warning.
+
+After package-manager installs, do not rely only on the current shell PATH. Search known installation directories and record the resolved executable path in the manifest.
+
+For downloaded archives, extraction/resolution must run even when the archive is already present, so reports use executable paths rather than archive paths.
