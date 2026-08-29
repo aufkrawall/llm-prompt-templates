@@ -3,7 +3,7 @@ SPDX-License-Identifier: MIT
 Copyright (c) 2026 aufkrawall
 -->
 
-# Security Audit Template — Condensed
+# Security Audit Template — Condensed, Cross-Language Hardened
 
 Perform a focused, evidence-backed security audit of the codebase, configuration, generated binaries, and runtime behavior where applicable.
 
@@ -127,9 +127,9 @@ Tool path precedence:
 If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional and should follow its conservative defaults. The audit must still verify the resulting tool availability instead of assuming installation succeeded.
 
 
-If `llm-wiki/debug-tools-security-audit.md` exists, use it as the preferred security-audit tool inventory. If it does not exist, fall back to `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md`. If both exist, use `debug-tools-security-audit.md` as the primary source and `debug-tools.md` as supplemental project-specific debugging guidance. Use these files to identify available or expected debugging, binary-inspection, crash-analysis, media/capture-analysis, runtime-diagnostics, and platform-specific tools that may be useful for the audit. Prefer tools listed there when they fit the audit task.
+If `llm-wiki/debug-tools-security-audit.md` exists, use it as the preferred security-audit tool inventory. If it does not exist, fall back to `llm-wiki/debug-tools.md`. If both exist, use `debug-tools-security-audit.md` as the primary source and `debug-tools.md` as supplemental project-specific debugging guidance. Use these files to identify available or expected debugging, binary-inspection, crash-analysis, media/capture-analysis, runtime-diagnostics, and platform-specific tools that may be useful for the audit. Prefer tools listed there when they fit the audit task.
 
-For Windows crash and binary inspection, `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` may define project-specific tools and paths such as:
+For Windows crash and binary inspection, `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` may define project-specific tools and paths such as:
 
 - `cdb.exe`, `windbg.exe`, `WinDbgX.exe`, and `dumpchk.exe` for `.dmp` analysis
 - `symchk.exe`, `dbh.exe`, `pdbcopy.exe`, and `symstore.exe` for symbol/PDB validation
@@ -138,11 +138,11 @@ For Windows crash and binary inspection, `llm-wiki/debug-tools-security-audit.md
 - project-specific capture/media helpers such as `ffmpeg.exe` and `ffprobe.exe`
 - project-specific diagnostics such as DX12 DRED, DX12 debug layer, and always-on `DX12 DIAG:` log interpretation where applicable
 
-When crash dumps are analyzed on Windows, use the symbol-path guidance from `llm-wiki/debug-tools-security-audit.md` if present, otherwise from `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` if present. In particular, do not use a Microsoft-symbol-server-only path when the project-local PDB directory is required for complete stack traces.
+When crash dumps are analyzed on Windows, use the symbol-path guidance from `llm-wiki/debug-tools-security-audit.md` if present, otherwise from `llm-wiki/debug-tools.md` if present. In particular, do not use a Microsoft-symbol-server-only path when the project-local PDB directory is required for complete stack traces.
 
 Tool-inventory handling rules:
 
-- Check whether `llm-wiki/debug-tools-security-audit.md` exists before selecting crash, dump, symbol, binary, or runtime-diagnostic tools; if absent, check `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md`.
+- Check whether `llm-wiki/debug-tools-security-audit.md` exists before selecting crash, dump, symbol, binary, or runtime-diagnostic tools; if absent, check `llm-wiki/debug-tools.md`.
 - Check whether each relevant listed tool is actually available at the documented path before relying on it.
 - If a listed tool is missing, inaccessible, incompatible with the current platform, or fails to run, print a clear warning in the report.
 - If a tool is unavailable but a reasonable fallback exists, use the fallback and document the reduced coverage.
@@ -197,6 +197,7 @@ Prioritize:
 10. Security regression gaps, missing abuse-case tests, missing malformed-input tests, missing auth/access-control tests, and missing fuzz targets for parser/protocol/file/network/deserialization code.
 11. Maintainability issues only when they materially increase security risk, make fixes unsafe, hide vulnerabilities, or weaken future review.
 12. Proposed security fixes that silently disable features, reduce central workflow correctness, create unacceptable performance regressions, or replace a vulnerability with a denial-of-service, availability, compatibility, or usability failure.
+13. Language/toolchain-specific gaps, especially unreviewed Rust `unsafe`/FFI, Go `unsafe`/cgo/races, C#/.NET native interop/reflection/dynamic loading, or C/C++ memory/ABI hardening that generic scanners do not adequately cover.
 
 Avoid low-value checklist output. Do not list every minor style concern. Group related minor issues. Recommend larger refactors only when they clearly reduce security risk.
 
@@ -408,9 +409,9 @@ If a fix intentionally changes behavior or performance, the report must state:
 - how feature, compatibility, and performance regressions were tested
 - whether affected users need migration guidance or configuration changes
 
-### Compiler and linker hardening
+### Compiler, linker, and runtime process hardening
 
-Assess whether the project enables strict diagnostics and hardening settings appropriate to the language, platform, and risk profile.
+Assess whether the project enables strict diagnostics and hardening settings appropriate to the language, platform, architecture, build mode, and risk profile. Distinguish **binary opt-in metadata/compile-time hardening** from **runtime process mitigation state**. A hardened PE/ELF header alone is not proof that the corresponding runtime mitigation is active, and a runtime policy does not compensate for an unhardened binary when the mitigation requires compiler/linker instrumentation.
 
 For C/C++/native code, assess where feasible:
 
@@ -419,24 +420,197 @@ For C/C++/native code, assess where feasible:
 - `-Wconversion`
 - `-Wshadow`
 - `-Werror` where feasible and not counterproductive
-- stack protector settings
-- `_FORTIFY_SOURCE` or equivalent checked-libc hardening where applicable
+- stack protector settings, preferring strong coverage such as `-fstack-protector-strong` where supported
+- stack-clash protection such as `-fstack-clash-protection` where supported and relevant
+- `_FORTIFY_SOURCE`, preferably level 3 when supported by the libc/toolchain and otherwise the strongest compatible level
 - PIE/ASLR compatibility
 - RELRO/NOW where applicable
 - NX / non-executable stack
-- CFI or equivalent control-flow protection where practical
+- CFI, CET, BTI/PAC/GCS, shadow-stack, or equivalent control-flow protection where practical and supported
 - hardened allocator or runtime options where applicable
 - debug/release differences that affect security
 - removal or isolation of production-invasive diagnostics
 - narrow, justified warning suppressions only when unavoidable
 
-Do not require every flag blindly. Evaluate whether omissions are justified for the compiler, platform, build mode, dependency constraints, ABI constraints, and release target.
+Do not require every flag blindly. Evaluate whether omissions are justified for the compiler, platform, build mode, dependency constraints, ABI constraints, runtime/JIT requirements, plugin model, hardware support, and release target. If a mitigation would break a required feature such as JIT compilation, dynamic plugins, instrumentation, or legacy interoperability, record the incompatibility and assess compensating controls rather than silently forcing the mitigation.
 
-Platform-specific hardening checks should include, where applicable:
+### Required language- and toolchain-specific coverage
 
-- **Windows x64/ARM64:** MSVC or clang-cl warning level such as `/W4`; `/WX` where feasible; `/sdl`; `/GS`; DEP/NX; ASLR with `/DYNAMICBASE`; high-entropy VA; Control Flow Guard such as `/guard:cf`; exception-continuation protection where available; safe DLL search behavior; manifest/UAC expectations; runtime library consistency; PDB/debug-symbol handling.
-- **Linux x64/ARM64:** PIE; full RELRO; immediate binding where appropriate; stack canaries; NX stack; `_FORTIFY_SOURCE`; CET/BTI/PAC or equivalent platform support where applicable; safe `RPATH`/`RUNPATH`; no unsafe writable/executable sections; expected glibc/musl/libstdc++ compatibility; stripped symbols where appropriate.
+Do not treat memory-safe languages as automatically secure, and do not apply C/C++ controls mechanically to managed or memory-safe runtimes. Identify every production language, compiler/runtime, build mode, FFI/native boundary, generated-code path, and package ecosystem, then apply the matching checks below. Where multiple languages are present, audit each language independently and audit the boundaries between them.
+
+At minimum, record for each production language/toolchain:
+
+- compiler/runtime version and supported release target
+- release/profile settings actually used to ship
+- warning/lint/analyzer posture and suppressions
+- dependency manifest and lock/integrity mechanism
+- native/unsafe/FFI surface area
+- concurrency/runtime safety checks that are meaningful for that language
+- fuzzing/property/adversarial test coverage for untrusted-input boundaries
+- generated-binary hardening where the language emits or bundles native executables/libraries
+- debug/release differences, including assertions, overflow behavior, panic/exception behavior, symbols, tracing, and runtime code generation
+- whether security claims depend on implementation details that vary by compiler/runtime version
+
+#### C
+
+For C code, assess the native hardening baseline above plus C-specific memory and API risks:
+
+- strict warnings appropriate to the compiler, including conversion/sign/format/prototype/implicit-declaration warnings where supported
+- elimination or tightly justified use of unbounded string/memory APIs and unsafe variadic/format-string patterns
+- integer overflow/truncation in allocation sizes, lengths, indexes, offsets, protocol fields, and pointer arithmetic
+- lifetime/ownership discipline for heap, stack, globals, callbacks, and cross-thread objects
+- flexible-array members, packed structures, aliasing, alignment, endian conversion, and serialization assumptions
+- `setjmp`/`longjmp`, signal-handler safety, async-signal-safe behavior, and error-path cleanup where relevant
+- compiler hardening such as stack protection, stack-clash protection, FORTIFY, PIE, RELRO/NOW, NX, CFI/CET/BTI/PAC/GCS, and production-appropriate auto-variable initialization where supported
+- ASan/UBSan and other sanitizer configurations in dedicated test builds where supported
+- fuzzing of parsers, protocol handlers, file formats, decoders, archive code, and all other untrusted-input boundaries
+
+Do not accept "clean valgrind" or "clean sanitizer run" as proof of memory safety; report exercised coverage and untested paths.
+
+#### C++
+
+For C++, apply all relevant C/native checks and additionally assess:
+
+- ownership expressed with RAII and standard smart-pointer/container abstractions where practical
+- raw owning pointers, manual `new`/`delete`, placement construction, custom allocators, pointer arithmetic, lifetime extension, and object-reuse patterns
+- iterator/reference invalidation, bounds assumptions, signed/unsigned conversions, narrowing, and exception-safety of state-changing operations
+- type confusion risks from casts, unions/variants, polymorphism, serialization, RTTI, plugin interfaces, and ABI boundaries
+- exception behavior across DLL/shared-library/FFI boundaries and whether exceptions can cross incompatible runtimes or C ABIs
+- unsafe concurrency, object lifetime across callbacks/tasks, atomics/memory ordering, and thread-safety contracts
+- standard-library hardening/assertion modes where supported and compatible, such as GNU libstdc++ assertions or libc++ hardening modes; record whether they are production-enabled or test-only
+- Clang/GCC/MSVC static analysis and sanitizers appropriate to the codebase; consider CFI with LTO where practical for high-risk native components
+- whether Spectre-class mitigations, speculative-load hardening, or platform-specific mitigated libraries are justified for secrets/high-trust boundaries; do not require them blindly
+
+#### Rust
+
+Rust memory safety substantially reduces some vulnerability classes only for safe Rust. Audit the trusted `unsafe` and native surface explicitly rather than giving Rust code a high score by language choice alone.
+
+Assess where applicable:
+
+- `cargo check`/`cargo build` and `cargo clippy` over representative release feature sets and targets; use `--all-targets` and all compatible features where practical, but do not force mutually exclusive feature combinations
+- rustc and Clippy warnings/lints, with security-relevant suppressions narrow and justified; consider denying warnings in controlled builds where maintenance policy supports it
+- inventory of `unsafe` blocks/functions/traits/impls, `unsafe extern`/FFI declarations, raw pointers, unions, `MaybeUninit`, manual allocation, `transmute`, raw slice/string construction, `set_len`, pinning, and unsafe `Send`/`Sync` implementations
+- `unsafe_code` policy: use `#![deny(unsafe_code)]` for crates that should contain no unsafe code; for crates that require unsafe code, isolate it into small reviewed modules and require documented safety invariants rather than globally denying required functionality
+- `unsafe_op_in_unsafe_fn` and equivalent linting so unsafe operations remain explicit and reviewable
+- FFI ABI, ownership, alignment, unwinding, callback lifetime, thread-safety, allocator, and panic-boundary behavior; never allow an unwind to cross an ABI boundary that does not permit it
+- integer overflow behavior in release builds: use explicit checked/saturating arithmetic or `overflow-checks` where security-sensitive arithmetic requires fail-closed behavior; do not assume debug overflow checks exist in release
+- panic strategy (`unwind` vs `abort`) as a deliberate reliability/security tradeoff, especially for services, FFI, and high-assurance components
+- Cargo dependency integrity: `Cargo.lock` for shipped applications/binaries where appropriate; registry/source overrides, `[patch]`, git dependencies, build scripts, proc macros, and native-sys crates reviewed as supply-chain/code-execution surface
+- `cargo-audit` or equivalent RustSec advisory checking; consider `cargo-deny` or equivalent for advisories, duplicate/version/source/license policy when used by the project
+- Miri for suitable unsafe-heavy or invariant-sensitive code where it can execute meaningfully; document unsupported OS/FFI behavior rather than treating skipped Miri coverage as a pass
+- sanitizer builds on supported targets/toolchains where material; Rust sanitizer support can be toolchain/target dependent and may require nightly, so record actual support instead of assuming availability
+- fuzzing with `cargo-fuzz`/libFuzzer or another suitable engine for parsers, codecs, protocol/file boundaries, unsafe abstractions, and FFI entry points
+- emitted PE/ELF/Mach-O hardening exactly as for other native binaries; do not assume Rust automatically provides the required ASLR/CFG/CET/RELRO/NX properties for every target/linker configuration
+
+#### Go
+
+Go removes many memory-management hazards but still requires explicit review of concurrency, `unsafe`, cgo, assembly, reflection, dependency integrity, and emitted native binaries.
+
+Assess where applicable:
+
+- `go test ./...` and `go vet ./...`; add project-appropriate static analyzers such as Staticcheck when available and useful
+- `govulncheck ./...` for reachable Go vulnerability analysis, plus dependency inventory from `go list -m -json all` or equivalent
+- `go test -race` on supported targets for concurrent components; report exercised workloads because the race detector only finds executed races and is not a production build mode
+- built-in Go fuzzing for parsers, protocol handlers, file formats, decoders, validation code, and other untrusted-input boundaries
+- all uses of `unsafe`, cgo (`import "C"`), handwritten assembly, `//go:linkname`, raw syscalls, reflection-based mutation/dispatch, and native callback boundaries
+- cgo pointer-passing/lifetime rules, ownership across C/Go heaps, callback lifetime, thread affinity, errno/error translation, and whether C dependencies receive their own native hardening/sanitizer review
+- whether cgo is actually required; reducing it can reduce native attack surface, but do not disable required integrations merely to satisfy the audit
+- goroutine lifecycle, cancellation, channel closure, lock ordering, atomic usage, map access, timer/ticker cleanup, unbounded goroutine creation, retry loops, and memory/CPU amplification
+- module integrity and provenance: `go.mod`, `go.sum`, `replace`/`exclude` directives, private-module settings, checksum database/proxy exceptions, vendored modules, and local filesystem replacements
+- cryptographic randomness and key/token generation: security-sensitive randomness must not use non-cryptographic PRNG APIs
+- nondefault `GODEBUG` or runtime knobs that materially change security, parsing, TLS, HTTP, or compatibility behavior
+- optional pointer/check instrumentation in dedicated validation builds where the active Go version/target supports it; record exact flags used rather than relying on version-specific defaults
+- emitted PE/ELF/Mach-O hardening and actual build mode. Do not assume Go binaries are PIE or have the desired platform hardening solely because they were built by Go; inspect the release artifact and record internal vs external linking/cgo effects where relevant
+
+#### C# / .NET
+
+Managed memory safety does not remove deserialization, reflection, dynamic-loading, authorization, native interop, dependency, JIT, or runtime-configuration risks. Audit the actual deployment model: framework-dependent, self-contained, single-file, trimmed, ReadyToRun, or Native AOT.
+
+Assess where applicable:
+
+- SDK/runtime/target-framework version, support status, publish mode, runtime identifier, and whether the shipped app depends on a separately serviced runtime
+- compiler warnings and .NET analyzers; verify `EnableNETAnalyzers`/analysis level behavior as applicable and review analyzer suppressions. Use `TreatWarningsAsErrors` or targeted warning-as-error policy where sustainable; do not hide security analyzer findings to keep builds green
+- nullable-reference analysis for codebases where it is practical, especially security-sensitive APIs, configuration, deserialization, authorization, and boundary code
+- `unsafe` blocks, pointers, `stackalloc`, `fixed`, function pointers, `MemoryMarshal`, `Unsafe` APIs, `Span<T>` lifetime escapes, P/Invoke, COM, native callbacks, and custom marshalling
+- native handle/resource ownership, preferring safe lifetime abstractions such as `SafeHandle` over unmanaged raw handles where applicable
+- integer overflow/truncation in allocation, indexing, offsets, protocol lengths, and native interop; use checked arithmetic or explicit validation where fail-closed behavior is required rather than assuming the default arithmetic context is sufficient
+- reflection, expression compilation, `Reflection.Emit`, runtime code generation, `Assembly.Load*`, `AssemblyLoadContext`, `NativeLibrary.Load`, plugin discovery, and user-controlled type/member resolution
+- dangerous or legacy deserialization and polymorphic type activation, including any path where untrusted input can select runtime types, constructors, converters, binders, or executable code
+- exception filters, finalizers/disposal, async cancellation, task lifetime, synchronization, thread-pool starvation, and unbounded allocation/task creation where security or availability relevant
+- NuGet dependency auditing during restore/build. Explicitly audit transitive packages rather than relying on SDK defaults that differ by target framework/SDK; establish policy for NU1901-NU1904 and treat high/critical advisories as release-impacting according to reachability and exploitability
+- package source configuration, source mapping, lock files/locked restore where used, local feeds, package signatures/trust policy where applicable, and package/build targets that execute during restore/build
+- runtime and framework configuration that changes TLS, globalization, diagnostics, assembly loading, JIT, GC, or compatibility behavior where it materially affects security
+- ASP.NET Core security controls where applicable, including authentication/authorization ordering, forwarded-header trust, antiforgery/CSRF, CORS, request-size limits, data-protection key handling, secure cookies, proxy assumptions, and error/detail exposure
+
+For .NET JIT deployments, Windows Dynamic Code Prohibition is generally incompatible with normal JIT code generation. Record this as a runtime requirement instead of falsely scoring the process as unhardened without context. For applications compatible with **Native AOT**, assess it as an optional hardening/deployment choice rather than a universal requirement. Native AOT eliminates runtime code generation, restricts reflection/dynamic assembly behavior, and can support additional native mitigations such as Windows Control Flow Guard; current .NET Native AOT Windows publishing also supports CET shadow-stack compatibility. Verify the emitted native binary and runtime process policies rather than inferring them from the project property alone.
+
+#### Other managed or memory-safe languages
+
+For Java/Kotlin/JVM, Python, JavaScript/TypeScript/Node.js, Swift, and other production languages, apply the same principle: use ecosystem-specific analyzers and dependency tooling, audit unsafe/native extensions and dynamic code loading, and inspect emitted/bundled native artifacts where applicable. At minimum:
+
+- **JVM:** dependency advisories, deserialization, reflection/class loading, JNI/JNA/native libraries, SecurityManager-independent privilege assumptions, TLS/provider configuration, parser/resource-exhaustion risks, and JVM flags that weaken verification or expose diagnostics
+- **Python:** dependency locking/auditing, `eval`/`exec`/pickle-style deserialization, subprocess/shell use, import-path/plugin loading, native extension modules, virtual-environment/package-source integrity, and resource-exhaustion/concurrency risks
+- **JavaScript/TypeScript/Node.js:** lockfile integrity, lifecycle/install scripts, dependency advisories, prototype pollution, unsafe dynamic evaluation, child processes, SSRF/path handling, native addons, permission/sandbox model where used, and runtime flags
+- **Swift:** unsafe pointer/interop use, Objective-C/C bridges, concurrency isolation assumptions, package dependencies, and emitted Mach-O/runtime hardening
+
+A project using a language not listed above must still receive language-appropriate build, analyzer, dependency, unsafe/native-boundary, fuzzing, runtime, and binary-hardening coverage. If the audit environment lacks expertise or tooling for a production language, lower confidence explicitly rather than silently applying another language's checklist.
+
+Platform-specific binary hardening checks should include, where applicable:
+
+- **Windows x64/ARM64:** MSVC or clang-cl warning level such as `/W4`; `/WX` where feasible; `/sdl`; `/GS`; `/NXCOMPAT`; ASLR with `/DYNAMICBASE`; `/HIGHENTROPYVA` for applicable 64-bit targets; Control Flow Guard with `/guard:cf` at compile and link time; `/guard:ehcont` where supported; `/CETCOMPAT` / hardware-enforced stack-protection compatibility where supported; safe DLL search behavior; manifest/UAC expectations; runtime library consistency; PDB/debug-symbol handling.
+- **Linux x64/ARM64:** PIE; full RELRO; immediate binding where appropriate; non-executable `PT_GNU_STACK`; no `RWE` load segments or unintended writable+executable mappings; `_FORTIFY_SOURCE` at the strongest compatible level; `-fstack-protector-strong`; `-fstack-clash-protection` where supported; x86 CET such as `-fcf-protection=full` and corresponding ELF GNU properties where supported; ARM64 branch protection such as `-mbranch-protection=standard` (BTI/PAC) and newer guarded-control-stack support where supported; safe `RPATH`/`RUNPATH`; no `DT_TEXTREL`; expected glibc/musl/libstdc++ compatibility; stripped symbols where appropriate. GCC `-fhardened` may be used on supported GNU/Linux toolchains, but record the effective expanded protections because the exact set can change between GCC major versions.
 - **macOS x64/ARM64:** hardened runtime expectations where applicable; PIE; stack protector; safe `@rpath`/`@loader_path`/`@executable_path` usage; entitlement assumptions; sandbox expectations where applicable; universal-binary slice parity; deployment target compatibility; debug-symbol handling.
+
+### Required Windows process-mitigation verification
+
+For supported Windows release targets, verify the effective process mitigation policy for representative release processes, not only linker flags. Use `GetProcessMitigationPolicy`, a trusted equivalent inspector, or project-documented tooling. `Get-ProcessMitigation` may be used as supplemental configuration evidence, but do not substitute policy configuration for runtime evidence when the distinction matters.
+
+Assess at minimum, where compatible and applicable:
+
+| Mitigation | Required audit expectation | Important compatibility note |
+|---|---|---|
+| DEP / NX | DEP enabled; for 32-bit processes verify it is permanent when the product can set/require permanent DEP; verify `/NXCOMPAT` where applicable. For 64-bit native Windows processes, record the OS guarantee that hardware DEP is always enabled rather than requiring an unsupported 32-bit DEP setter. | Old ATL thunk behavior and unusual legacy code may conflict. |
+| ASLR | `/DYNAMICBASE`; high-entropy ASLR on applicable 64-bit images; verify effective ASLR policy and bottom-up randomization where available. | Do not claim high entropy for architectures/targets where the option is not applicable. |
+| Dynamic code | `ProcessDynamicCodePolicy.ProhibitDynamicCode=1`, with thread opt-out and remote downgrade disabled, **when the process does not require JIT/runtime code generation**. | JIT engines, managed runtimes, browsers, profilers, hot-patching, and some instrumentation may require executable code generation. |
+| Strict handle checks | `RaiseExceptionOnInvalidHandleReference=1` and `HandleExceptionsPermanentlyEnabled=1` where compatible. | Can expose latent handle-lifetime bugs as fail-fast crashes; validate normal workflows and third-party modules. |
+| Extension points | `DisableExtensionPoints=1` where compatible. | Legacy shell/UI/IME/AppInit-style integrations may depend on extension points. |
+| Control Flow Guard | Binary CFG instrumentation and load-config metadata present; runtime CFG enabled. Consider strict CFG only when all executable modules loaded by the process are compatible. | Plugins or third-party DLLs without CFG can break strict CFG. |
+| Stack protection | `/GS` enabled for native code; add `/guard:ehcont` and CET/hardware-enforced stack-protection compatibility where supported. | Hardware-enforced stack protection requires compatible hardware/OS/modules and can expose incompatible legacy components. |
+
+Record each mitigation as `Enabled`, `Disabled`, `Not supported`, `N/A — incompatible with required feature`, or `Evidence unavailable`. Do not collapse these into a single "Windows hardening enabled" result.
+
+Recommended Windows evidence includes, as available:
+
+- `dumpbin /headers /loadconfig <binary>` or equivalent PE inspection for NX compatibility, ASLR/high-entropy flags, CFG metadata, EH continuation metadata, and related load-config information
+- `GetProcessMitigationPolicy` / trusted runtime inspection for DEP, ASLR, Dynamic Code, Strict Handle Check, Extension Point Disable, CFG, and other applicable process policies
+- explicit inspection of every shipped executable and security-sensitive DLL, not only the primary EXE
+- module inventory for strict-CFG/CET compatibility and unexpected unsigned/unhardened executable modules where that is in scope
+
+### Linux equivalents and nearest analogues
+
+Linux does not provide one-to-one equivalents for every Windows process mitigation. Audit the actual primitive instead of claiming parity by name.
+
+| Windows concept | Linux equivalent / nearest analogue | Required audit evidence |
+|---|---|---|
+| DEP / NX | NX page permissions, non-executable `PT_GNU_STACK`, no unintended executable data, and no `RWE` load segments | `readelf -lW`, `objdump -p`, `checksec` if trusted/available, and runtime map inspection where useful |
+| ASLR / high entropy | PIE plus kernel ASLR; full userspace randomization uses `kernel.randomize_va_space=2`. Entropy is kernel/architecture controlled; where runtime-host settings are in scope, record `vm.mmap_rnd_bits` / `vm.mmap_rnd_compat_bits` when available. | ELF type/PIE evidence plus applicable sysctl/runtime-host evidence; do not call PIE alone "high-entropy ASLR" |
+| Dynamic code prohibited / ACG | Prefer Linux Memory-Deny-Write-Execute (`prctl(PR_SET_MDWE, PR_MDWE_REFUSE_EXEC_GAIN, ...)`) on kernels that support it and applications that do not require JIT. Once set, MDWE protection bits cannot be changed. Service-manager W^X controls, seccomp, or LSM policy may be used as compensating controls where appropriate. | Query MDWE with `PR_GET_MDWE` or trusted helper; inspect runtime mappings for W+X; document JIT/plugin compatibility |
+| Strict handle checks | **No direct kernel equivalent.** Invalid file descriptors normally fail with `EBADF` rather than forcing process termination. | Audit FD ownership/lifetime, close-on-exec, duplication/inheritance, stale-FD reuse, and error handling; use fail-fast assertions/testing where justified, but do not label this an OS-equivalent mitigation |
+| Extension points disabled | **No direct equivalent.** Nearest concern is blocking unintended loader/plugin injection (`LD_PRELOAD`, `LD_AUDIT`, unsafe `LD_LIBRARY_PATH`, unsafe `RPATH`/`RUNPATH`, untrusted plugin directories) and constraining privileged/service environments. | Loader environment, ELF dynamic tags, plugin search paths, service configuration, and runtime module inventory |
+| CFG | On x86, CET indirect-branch/shadow-stack support such as `-fcf-protection=full` plus GNU properties; on ARM64, BTI/PAC such as `-mbranch-protection=standard`; Clang CFI with LTO may provide stronger type-based CFI where practical. | Build flags plus `readelf -nW`/ELF property evidence and runtime/platform support; distinguish compile-time compatibility from active enforcement |
+| Stack protection | `-fstack-protector-strong` plus `-fstack-clash-protection` where supported; hardware return-address protection via CET shadow stack on x86 or PAC/GCS on ARM64 where supported | Build flags, symbol/relocation evidence where useful, ELF GNU properties, and architecture/runtime compatibility |
+
+Also assess these Linux-specific process/runtime controls when applicable to the threat model, especially for long-running services or parsers exposed to untrusted input:
+
+- `PR_SET_NO_NEW_PRIVS` / `NoNewPrivileges=yes`
+- seccomp filtering and whether the actual filter is active for the running process
+- capability bounding/dropping and absence of unnecessary ambient/effective capabilities
+- user/group privilege separation and unnecessary setuid/setgid behavior
+- mount/filesystem restrictions or service sandboxing where part of the shipped runtime configuration
+- `/proc/<pid>/maps` for unexpected writable+executable mappings
+- loader environment and runtime-loaded module inventory
+
+Do not score system-wide Linux sysctls, service-manager sandboxing, container policy, or host configuration when deployment/infrastructure is explicitly out of scope. In that case, record them only as runtime assumptions or unverified environmental dependencies unless the project itself ships or requires that configuration.
 
 
 ### Source-level SAST, secrets, and dependency baseline
@@ -449,14 +623,22 @@ Use language/ecosystem-appropriate tools. Examples:
 |---|---|---|
 | `semgrep` | SAST / structural vulnerability scanning | General source trees, especially web/API/auth/parser/security-sensitive code |
 | `flawfinder` | C/C++ risky API scanning | C/C++ codebases |
+| `clang-tidy` / compiler analyzers | Native static analysis | C/C++ codebases where supported |
 | `gitleaks` | secrets scanning | Source tree and Git history where available |
 | `trufflehog` | deeper secrets scanning | High-sensitivity repositories or when history scanning is needed |
 | `osv-scanner` | dependency vulnerability scanning | Repositories with lockfiles/manifests |
-| `cargo-audit` | Rust dependency advisories | Rust projects with `Cargo.lock` |
-| `npm audit` | Node dependency advisories | Node projects with `package-lock.json` or similar |
-| `pip-audit` | Python dependency advisories | Python projects with requirements or lockfiles |
+| `cargo clippy` | Rust correctness/lint analysis | Rust crates/workspaces |
+| `cargo-audit` | RustSec dependency advisories | Rust projects with `Cargo.lock` or resolved dependency graph |
+| `cargo-deny` | Rust dependency policy | Rust projects using advisory/source/license/duplicate policy |
+| Miri | Rust undefined-behavior/interpreter checks | Suitable unsafe-heavy Rust code; target/API support permitting |
+| `go vet` | Go static analysis | Go modules |
 | `govulncheck` | Go vulnerability analysis | Go modules |
 | `go list -m -json all` | Go dependency inventory | Go modules |
+| Go race detector | Go concurrency dynamic analysis | Concurrent Go code on supported targets |
+| .NET analyzers / Roslyn CA rules | C#/.NET static analysis | C#/.NET projects |
+| NuGet audit (`dotnet restore`) | .NET dependency vulnerability audit | NuGet-based .NET projects; include transitives explicitly |
+| `npm audit` | Node dependency advisories | Node projects with `package-lock.json` or similar |
+| `pip-audit` | Python dependency advisories | Python projects with requirements or lockfiles |
 | `mvn dependency:tree` / `gradle dependencies` | JVM dependency inventory | Java/Kotlin/Gradle/Maven projects |
 
 Rules:
@@ -498,8 +680,11 @@ Run or inspect dynamic-analysis results where applicable, including:
 - crash reproducers
 - malformed-input tests
 - concurrency/lifecycle stress tests
+- Rust Miri/sanitizer runs where supported and meaningful, with `unsafe`/FFI-heavy paths prioritized
+- Go `-race` runs and realistic concurrent workloads on supported targets
+- C#/.NET stress, native-interop, checked-boundary, and publish-mode tests; include Native AOT validation when that mode is shipped or specifically proposed as a hardening control
 
-Dynamic-analysis findings in security-sensitive paths should be treated as high risk until root-caused.
+Dynamic-analysis findings in security-sensitive paths should be treated as high risk until root-caused. A dynamic tool's lack of findings is evidence only for the code paths, target, runtime, features, and workload actually exercised.
 
 ### Fuzzing
 
@@ -880,6 +1065,8 @@ When implementing fixes later:
 - Fix warning/analyzer/sanitizer/compiler/linker root causes instead of suppressing them. Suppress only narrowly, with justification.
 - Prefer safe APIs, explicit bounds checks, checked arithmetic, bounded queues, bounded concurrency, backpressure, rollback, safe defaults, and explicit ownership/lifetime models.
 - Prefer memory-safe designs for high-assurance and high-blast-radius components. Keep trusted C/C++/unsafe/FFI surface area small, explicit, and heavily tested.
+- Do not treat Rust, Go, C#, Java, or other memory-safe/managed languages as automatically high-assurance; review unsafe/native/FFI, reflection/dynamic loading, concurrency, dependency, parser, authorization, and runtime-specific risks explicitly.
+- For mixed-language systems, test both sides of every FFI/native boundary for ownership, lifetime, allocator, error, exception/panic/unwind, threading, encoding, structure-layout, and ABI assumptions.
 - Treat parser, native/FFI, unsafe, concurrency, service/daemon, dynamic-loading, privileged, GUI high-blast-radius, authentication, authorization, tenancy, business-logic, and domain-sensitive code as high-risk until validated.
 - Do not hide crashes without fixing corrupted state, unsafe behavior, or the root cause.
 - Preserve or improve generated-binary hardening and crash diagnosability.
@@ -924,7 +1111,17 @@ Verify, where applicable:
 - Admin, debug, internal, and privileged interfaces are protected.
 - No known exploit reproducer still succeeds unless explicitly accepted with rationale.
 - No known crash reproducer still crashes in a security-sensitive path unless explicitly accepted with rationale.
+- Every production language/toolchain has explicit language-specific audit coverage; no language was treated as secure solely because it is memory-safe or managed.
+- C/C++ native code has warning, sanitizer, fuzzing, ownership/lifetime, integer, API, concurrency, and emitted-binary hardening coverage appropriate to the target.
+- Rust crates have `unsafe`/FFI inventory and invariant review, Clippy/lint coverage, dependency advisory coverage, release-overflow/panic-boundary review, fuzzing for exposed boundaries, and native-binary inspection where applicable.
+- Go modules have `go vet`, `govulncheck`, race-detector coverage where supported, fuzzing for exposed boundaries, `unsafe`/cgo/assembly review, module-integrity review, and release-binary inspection.
+- C#/.NET projects have analyzer/nullability posture review, NuGet transitive vulnerability audit, unsafe/PInvoke/native-handle review, reflection/dynamic-loading/deserialization review, JIT-vs-Native-AOT/runtime-code-generation assessment, and publish-artifact/runtime hardening inspection.
+- Mixed-language FFI boundaries are validated for ABI, ownership, lifetime, allocation/deallocation, error translation, unwind/exception/panic behavior, threading, encoding, and structure layout.
 - Compiler warning settings and hardening choices are documented and justified.
+- Windows release processes were checked for effective DEP/NX, applicable permanent DEP semantics, ASLR/high-entropy ASLR, Dynamic Code policy, Strict Handle Checks, Extension Point Disable, CFG, `/GS`, and applicable EHCONT/CET hardware stack protection; incompatible mitigations are explicitly justified instead of silently omitted.
+- Windows PE inspection distinguishes compile/link metadata from runtime process-mitigation state, and all shipped security-sensitive EXEs/DLLs are covered or explicitly marked unavailable.
+- Linux ELF hardening was checked for PIE, full RELRO/NOW, NX `PT_GNU_STACK`, absence of unintended `RWE` segments/`DT_TEXTREL`, strong stack protection, stack-clash protection where supported, and architecture-appropriate CET/BTI/PAC/GCS or other CFI evidence.
+- Linux runtime hardening distinguishes direct equivalents from nearest analogues: ASLR host settings are not inferred from PIE alone; MDWE/W^X is checked where dynamic code should be prohibited; no false "strict handle checks" or "extension-points disabled" equivalence is claimed.
 - Static-analysis findings are resolved, justified, or documented as false positives.
 - Sanitizer findings are resolved or justified.
 - Fuzzing exists for parser, protocol, file-format, networking, deserialization, decoder/encoder, archive, and boundary-heavy code where relevant.
