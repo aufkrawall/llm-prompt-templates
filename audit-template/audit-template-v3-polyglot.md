@@ -25,6 +25,8 @@ Out of scope unless requested: hosted CI administration, signing, notarization, 
 ## Language, runtime, and artifact profiles
 Apply the common method plus every relevant profile. These are **risk prompts, not mandatory findings**. Do not penalize a target for lacking a mechanism that its language, runtime, toolchain, artifact type, platform, or threat model does not use.
 
+Load and apply `audit-language-profiles-addendum.md` when it is available alongside this template. It is a required companion for this repository's intended general-audit coverage and contains first-class JavaScript/TypeScript and Java/Kotlin/JVM profiles plus deterministic score-calculation guidance. If that companion is unavailable for a target using those ecosystems, report the missing companion as a coverage limitation and use the Mixed/other profile as a fallback rather than silently omitting ecosystem-specific review.
+
 ### C profile
 Check the actual C standard/dialect and compiler extensions; preprocessing/configuration macros; warnings under supported compilers; pointer arithmetic/provenance/lifetime; array and string bounds; null and dangling pointers; use-after-free/double/invalid free; uninitialized reads; signed/unsigned conversions; integer promotions/overflow and allocation-size arithmetic; strict aliasing/effective type; alignment and packed layouts; flexible arrays/VLAs; varargs/format strings; function-pointer casts/callback signatures; `setjmp`/`longjmp`; signal-handler safety; atomics/data races; `volatile` misuse; ownership and allocator/deallocator pairing; partial initialization/cleanup; file/socket/handle/FD lifecycle; errno/error propagation; ABI/calling convention/layout/export compatibility; platform assumptions; and parser/input robustness.
 
