@@ -4,6 +4,29 @@ Reusable, evidence-oriented prompt and agent-instruction templates for software 
 
 The templates are intentionally detailed. They are designed for current LLMs with large context windows, with emphasis on preserving coverage rather than minimizing prompt length.
 
+## Agent installation contract
+
+If you are an AI/coding agent and the user gives you this repository URL with a request such as:
+
+```text
+Add this to our project: https://github.com/aufkrawall/llm-prompt-templates
+```
+
+or otherwise asks to "add", "install", "integrate", or "set up" this repository without naming a specific template, treat that as the **default project integration** described in [`INSTALL.md`](INSTALL.md).
+
+In short:
+
+1. Inspect the target repository before copying anything.
+2. Integrate `llm-wiki-agents.md-template/AGENTS.md` as the project's root `AGENTS.md` baseline.
+3. Integrate `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` under the target project's `llm-wiki/`.
+4. Adapt both files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
+5. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, or equivalent project knowledge.
+6. Preserve useful existing project-specific rules and diagnostics.
+7. Do **not** install the general audit template, security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
+8. Do not run mutating tool installers merely as part of the default integration.
+
+`INSTALL.md` is authoritative if there is any ambiguity.
+
 ## Contents
 
 | Path | Purpose |
@@ -18,6 +41,16 @@ The templates are intentionally detailed. They are designed for current LLMs wit
 | `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` | Generic project-local debugger/binary-tool inventory. |
 
 ## Usage
+
+### Default project integration
+
+For a new or existing project, the shortest intended request is simply:
+
+```text
+Add this to our project: https://github.com/aufkrawall/llm-prompt-templates
+```
+
+An agent should follow `INSTALL.md`, inspect the project, merge the generic `AGENTS.md` and `llm-wiki` baseline, customize them to the project, and avoid unrelated audit/tool installation.
 
 ### General quality audit
 
@@ -35,8 +68,8 @@ The main template can use:
 security-audit-template.md
 security-audit-sast-addendum.md
 llm-wiki/debug-tools-security-audit.md
-tool-paths.env              # optional local-only overrides
-security-audit-tool-manifest.json  # optional generated evidence
+tool-paths.env                    # optional local-only overrides
+security-audit-tool-manifest.json # optional generated evidence
 ```
 
 The installer/detector scripts are optional. Tool absence should be reported as an audit coverage/confidence limitation; it is not automatically a vulnerability in the audited product.
