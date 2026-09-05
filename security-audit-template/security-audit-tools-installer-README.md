@@ -20,13 +20,16 @@ llm-wiki/
 
 Only `debug-tools-security-audit.md` is placed under `llm-wiki/`.
 
-Optional local-only file:
+Optional local-only files include:
 
 ```text
 tool-paths.env
+security-audit-tool-manifest.json
+security-audit-tool-warnings.txt
+security-audit-tool-availability.md
 ```
 
-Do not commit secrets to `tool-paths.env`.
+Do not commit secrets to `tool-paths.env` or generated evidence.
 
 ## Internal reference policy
 
@@ -42,7 +45,18 @@ install-security-audit-tools.ps1
 install-security-audit-tools.sh
 ```
 
-`llm-wiki/debug-tools.md` is only a fallback or supplemental legacy file. The root-level files are not expected under `llm-wiki/`.
+`llm-wiki/debug-tools.md` is only a fallback or supplemental project-specific file. The root-level files are not expected under `llm-wiki/`.
+
+`llm-wiki/debug-tools-security-audit.md` in this repository is intentionally generic. When copying the bundle into a concrete project, add durable project-specific tool paths and diagnostic knowledge to that project's local copy rather than to this reusable template.
+
+## Evidence and scoring policy
+
+Tool availability is audit-coverage evidence, not a product vulnerability by itself.
+
+- Missing applicable tools should produce visible warnings and lower audit confidence.
+- Do not automatically lower the product/security score solely because a preferred scanner or debugger is unavailable.
+- Lower substantive scores when missing evidence demonstrates an unmet requirement, prevents verification of a required release/security criterion, or the chosen scoring model explicitly measures verification coverage.
+- Explicit strict required-tool gates may fail independently of confirmed product vulnerabilities.
 
 ## Windows script
 
@@ -52,7 +66,7 @@ Use from the project root:
 .\install-security-audit-tools.ps1
 ```
 
-Conservative default: downloads small Sysinternals CLI tools and `vswhere`, detects large tools without installing them.
+Conservative default: install or discover small, low-side-effect audit tools where supported and detect larger or more invasive tools without installing them.
 
 ## Linux/macOS script
 
@@ -79,7 +93,7 @@ Additional opt-ins:
 
 ## Evidence files
 
-The scripts write evidence such as:
+The scripts may write evidence such as:
 
 ```text
 security-audit-tool-manifest.json
@@ -87,10 +101,11 @@ security-audit-tool-warnings.txt
 security-audit-tool-availability.md
 ```
 
-Audit reports should copy relevant warnings into the summary and reduce affected scorecard confidence.
+Audit reports should carry forward material warnings and reflect them in coverage/confidence notes.
+
 ## Path correctness after running the Windows installer
 
-After running `install-security-audit-tools.ps1`, do not assume the example paths in `llm-wiki/debug-tools-security-audit.md` are the installed paths.
+Do not assume example paths in documentation are the installed paths. Prefer the generated manifest, then local path overrides, then shell discovery.
 
 The default PowerShell installer root is:
 
@@ -98,7 +113,7 @@ The default PowerShell installer root is:
 %LOCALAPPDATA%\SecurityAuditTools
 ```
 
-The generated manifest is the source of truth:
+The generated manifest is the first source of truth when present:
 
 ```text
 %LOCALAPPDATA%\SecurityAuditTools\security-audit-tool-manifest.json
@@ -116,16 +131,17 @@ Default portable Sysinternals tools are installed under:
 %LOCALAPPDATA%\SecurityAuditTools\bin\vswhere
 ```
 
-Windows SDK Debugging Tools and MSVC tools are detected but not installed by default.
+Windows SDK Debugging Tools and MSVC tools are detected but are not installed by default.
+
 ## Project-specific diagnostics
 
-The DX12/DRED/debug-layer sections in `llm-wiki/debug-tools-security-audit.md` are conditional project-specific guidance. They are not generic security-audit requirements and should not affect scoring for unrelated projects.
+The reusable `llm-wiki/debug-tools-security-audit.md` deliberately avoids one project's incident history, product names, hardcoded symbol paths, or subsystem-specific debugging signatures.
 
-Apply them only when the audited project has DX12/D3D12/GPU/capture/hook/overlay behavior or when the audit question specifically concerns those diagnostics.
+After copying the bundle into a project, its local tool inventory may add project-specific diagnostics such as GPU validation, service tracing, media/capture analysis, device/hardware tooling, protocol traces, symbol layouts, or domain-specific runtime instrumentation.
 
+Apply project-specific diagnostics only when their subsystem is in scope. Missing irrelevant project-specific tools must not reduce score or confidence.
 
 ## Windows SAST/secrets/dependency tool setup
-
 
 Default Windows run:
 
@@ -133,7 +149,7 @@ Default Windows run:
 .\install-security-audit-tools.ps1
 ```
 
-Default install attempts:
+Default install attempts may include:
 
 ```text
 gitleaks
@@ -154,11 +170,11 @@ Python/pip-based install opt-in:
 .\install-security-audit-tools.ps1 -IncludePythonSast
 ```
 
-Still opt-in:
+Still opt-in because of size, side effects, or specialization:
 
 ```text
-CodeQL      # large
-trufflehog  # deeper/heavier/noisier
+CodeQL
+trufflehog
 WinDbg
 LLVM
 FFmpeg
@@ -179,8 +195,7 @@ Targeted opt-outs:
 .\install-security-audit-tools.ps1 -SkipDependencyScannerInstall
 ```
 
-
-The PowerShell script installs portable, low-side-effect scanners by default. Python/pip-based scanners are opt-in because they can mutate user Python environments and install scripts outside PATH. CodeQL and trufflehog remain opt-in.
+Python/pip-based scanners remain opt-in because they can mutate user Python environments, install scripts outside PATH, and introduce resolver/version side effects. CodeQL and trufflehog remain opt-in because of size or depth/noise.
 
 Group installs:
 
@@ -202,29 +217,30 @@ Individual installs:
 .\install-security-audit-tools.ps1 -IncludeCodeQL
 ```
 
-`CodeQL` is large and remains explicitly opt-in.
-
 ## Path lookup
 
-After running an installer/detector, use the generated manifest first:
+After running an installer/detector, use the generated manifest first. Do not assume portable tools are on `PATH` unless the manifest/environment confirms that or `-AddToUserPath` was used.
 
-```text
-%LOCALAPPDATA%\SecurityAuditTools\security-audit-tool-manifest.json
-```
+Recommended resolution order:
 
-Do not assume installed portable tools are on `PATH` unless `-AddToUserPath` was used.
+1. generated `security-audit-tool-manifest.json`
+2. local `tool-paths.env`
+3. repository-local/pinned tool locations
+4. `Get-Command`, `where.exe`, `command -v`, or equivalent discovery
+5. documented project-specific known-good paths
+6. safe fallbacks
 
 ## Strict required-tool gate
 
-Default behavior is advisory: write warnings, continue, and let the audit adjust score/confidence.
+Default behavior is advisory: write warnings, continue the audit, and reduce coverage/confidence as appropriate.
 
-Strict mode is available when the audit scope requires specific tools:
+Strict mode is available when the audit scope explicitly requires specific tools:
 
 ```powershell
 .\install-security-audit-tools.ps1 -RequireTools semgrep,gitleaks,osv-scanner -StrictRequiredTools
 ```
 
-Exit codes:
+Typical exit-code policy:
 
 ```text
 0 = no warnings
@@ -232,25 +248,24 @@ Exit codes:
 3 = strict required-tool gate failed
 ```
 
-## PowerShell compatibility note
+Strict gates should name only tools that are genuinely required for the requested audit scope; optional or irrelevant tools must not block the audit.
 
-The PowerShell installer avoids `$Variable:` interpolation in double-quoted strings because PowerShell treats the colon as part of scoped variable syntax. Use `${Variable}:` or `-f` formatting when editing the script.
+## PowerShell compatibility notes
 
-## PowerShell scoped-variable note
+The PowerShell installer avoids `$Variable:` interpolation in double-quoted strings because PowerShell treats the colon as part of scoped-variable syntax. Use `${Variable}:` or `-f` formatting when editing ordinary variables followed by a literal colon.
 
-Valid scoped variables such as `$script:Warnings` and `$env:LOCALAPPDATA` must remain in scoped-variable form. Only ordinary variables followed by a literal colon inside double-quoted strings need `${Variable}:` or `-f` formatting.
+Valid scoped variables such as `$script:Warnings` and `$env:LOCALAPPDATA` must remain in scoped-variable form.
 
 ## Python/pip-based scanner policy
 
-`semgrep`, `flawfinder`, and `pip-audit` are useful, but they are not installed by default in the Windows script because `pip --user` can:
+`semgrep`, `flawfinder`, and `pip-audit` are useful, but they are not installed by default in the Windows script because Python user installs can:
 
 - modify the user's Python package set
-- install scripts into `%APPDATA%\Python\Python*\Scripts`
-- leave scripts outside `PATH`
-- produce long dependency resolver/backtracking output
+- install scripts into user script directories outside `PATH`
+- produce resolver/backtracking output and dependency conflicts
 - behave differently across Python versions
 
-Use `-IncludePythonSast` or individual `-IncludeSemgrep`, `-IncludeFlawfinder`, and `-IncludePipAudit` switches only when those side effects are acceptable.
+Use `-IncludePythonSast` or individual scanner switches only when those side effects are acceptable.
 
 ## Full install mode
 
@@ -260,7 +275,7 @@ Use `-Full` to install as much supported tooling as practical:
 .\install-security-audit-tools.ps1 -Full
 ```
 
-`-Full` enables:
+Full mode may enable:
 
 ```text
 gitleaks
@@ -274,7 +289,7 @@ LLVM through winget
 FFmpeg
 ```
 
-This mode can install large packages, use winget, and mutate the user Python environment. Use it only on a machine where those side effects are acceptable.
+This mode can install large packages, use package managers, and mutate the user Python environment. Use it only on a machine where those side effects are acceptable.
 
 ## Uninstall mode
 
@@ -282,12 +297,6 @@ Default uninstall removes the script-managed install root:
 
 ```powershell
 .\install-security-audit-tools.ps1 -Uninstall
-```
-
-This removes portable tools and generated evidence under:
-
-```text
-%LOCALAPPDATA%\SecurityAuditTools
 ```
 
 Shared package-manager installs and Python user packages are not removed by default because they may have existed before the script was run.
@@ -316,11 +325,11 @@ Use `-WhatIfOnly` to preview uninstall actions:
 .\install-security-audit-tools.ps1 -Uninstall -RemoveSharedPackages -RemovePythonPackages -WhatIfOnly
 ```
 
-## Full-mode reliability fixes
+## Full-mode reliability requirements
 
-The PowerShell installer handles these full-mode cases explicitly:
+The PowerShell installer should handle these cases explicitly:
 
-- `winget` returning a non-zero code for an already-installed package is verified with `winget list` before being treated as failure.
-- LLVM tools are searched in known install directories such as `C:\Program Files\LLVM\bin` after winget installation, not only in the current shell `PATH`.
-- Existing downloaded archives are still extracted/resolved so the manifest records executable paths rather than only archive paths.
-- WinDbg Preview can be recorded as package-installed even when the `WinDbgX.exe` alias is not visible in the current shell.
+- a package manager returning a non-zero code for an already-installed package should be verified with package-manager inventory before being treated as failure;
+- tools installed outside the current shell `PATH` should be searched in known installation directories and recorded by resolved executable path;
+- existing downloaded archives should still be extracted/resolved so the manifest records executable paths rather than archive paths;
+- package-installed tools such as WinDbg Preview may need to be recorded even when a shell alias is not visible in the current session.
