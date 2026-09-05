@@ -16,11 +16,12 @@ Do not ask which template they mean unless the target repository makes the defau
 
 ## Default project integration
 
-Install and adapt only the reusable project-agent baseline:
+Install and adapt the reusable project-agent baseline plus both generic project-local tool inventories:
 
 ```text
 llm-wiki-agents.md-template/AGENTS.md
 llm-wiki-agents.md-template/llm-wiki/debug-tools.md
+security-audit-template/llm-wiki/debug-tools-security-audit.md
 ```
 
 Target layout:
@@ -28,6 +29,7 @@ Target layout:
 ```text
 <project-root>/AGENTS.md
 <project-root>/llm-wiki/debug-tools.md
+<project-root>/llm-wiki/debug-tools-security-audit.md
 ```
 
 This is a **merge-and-adapt operation**, not a blind copy.
@@ -42,8 +44,9 @@ Before editing, inspect enough of the target repository to understand:
 - supported platforms/architectures when documented
 - existing `llm-wiki/` or equivalent project knowledge
 - debugger/tooling docs, symbol/artifact paths, and relevant local diagnostics when present
+- security-relevant binary/runtime tooling already documented or available
 
-Do not invent project-specific commands, paths, constraints, or platform claims.
+Do not invent project-specific commands, paths, constraints, tool availability, or platform claims.
 
 ### 2. Integrate `AGENTS.md`
 
@@ -68,7 +71,7 @@ Do not delete project-specific rules merely because they are absent from this te
 If `llm-wiki/debug-tools.md` does not exist:
 
 - create `llm-wiki/` if needed
-- use the template as a baseline
+- use `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` as the baseline
 - customize it only with tooling and paths that can be established from the target project or current environment
 
 If it already exists:
@@ -78,41 +81,60 @@ If it already exists:
 
 Treat machine-specific absolute paths as local examples unless the target project explicitly requires them.
 
-### 4. Preserve existing project knowledge
+### 4. Integrate `llm-wiki/debug-tools-security-audit.md`
+
+If `llm-wiki/debug-tools-security-audit.md` does not exist:
+
+- use `security-audit-template/llm-wiki/debug-tools-security-audit.md` as the baseline
+- place it at `<project-root>/llm-wiki/debug-tools-security-audit.md`
+- adapt generic tool/path examples only when target-project or current-environment evidence supports the adaptation
+- preserve the file's substantive cross-platform security/debug/binary-analysis coverage even when many checks are currently not applicable
+
+If it already exists:
+
+- merge reusable security-audit tooling guidance rather than overwriting project-specific security/debug knowledge
+- preserve useful project-specific debugger, binary-inspection, symbol/PDB, signing/hash, dependency, secrets, runtime-mitigation, filesystem/registry, network, event-log, Linux ELF, macOS Mach-O, dump/log, and evidence-capture guidance
+- remove only stale duplication or clearly unrelated incident-specific material when justified by current evidence
+
+The presence of this file does **not** mean the full security-audit bundle has been installed and does not authorize running tool installers or intrusive diagnostics.
+
+### 5. Preserve existing project knowledge
 
 When existing `llm-wiki/` pages are present:
 
 - preserve them
-- do not replace the directory with this repository's template directory
+- do not replace the directory with this repository's template directories
 - repair only clear conflicts introduced by the integration
 - avoid rewriting unrelated project history or diagnostic notes
 
-### 5. Validate the integration
+### 6. Validate the integration
 
 Before finishing:
 
 - verify Markdown references and paths used by the integrated files
-- confirm project-specific commands or paths added to the files actually exist or are documented
-- review the diff for accidental loss of existing instructions
-- do not claim a build/test passed unless you actually ran it
+- confirm project-specific commands, paths, or tool claims added to the files actually exist or are documented
+- review the diff for accidental loss of existing instructions or project-local audit knowledge
+- do not claim a build/test or security tool passed unless you actually ran it
 
-Running a full build is not required merely to install documentation/instructions, unless repository policy requires it or the integration changes executable project behavior.
+Running a full build or security audit is not required merely to install documentation/instructions, unless repository policy requires it or the integration changes executable project behavior.
 
 ## What the default integration must NOT do
 
 Unless the user explicitly asks for it, the default "add this repo" operation must not:
 
 - copy `audit-template/`
-- copy the `security-audit-template/` bundle
+- copy `security-audit-template/security-audit-template.md`
+- copy `security-audit-template/security-audit-sast-addendum.md`
+- copy the security-audit installer scripts or other bundle files merely because `debug-tools-security-audit.md` is included
 - run either security-audit tool installer
 - install global/system packages or developer tools
 - add or modify CI/CD workflows
 - enable strict required-tool gates
-- run intrusive diagnostics
+- run intrusive diagnostics or a full security audit
 - overwrite existing project instructions or `llm-wiki/` wholesale
 - add project-specific claims copied from another project
 
-This keeps the default integration low-risk and broadly applicable.
+This keeps the default integration low-risk while ensuring both general and security-oriented local tool guidance are available from the start.
 
 ## Explicit install modes
 
@@ -144,7 +166,7 @@ Add the security audit setup from this repo.
 Install the security audit bundle.
 ```
 
-Use the complete `security-audit-template/` bundle, preserving its internal file relationships. Do not run installers automatically unless the user requests tool installation or the target workflow explicitly requires it.
+Use the complete `security-audit-template/` bundle, preserving its internal file relationships. If the default integration already created `llm-wiki/debug-tools-security-audit.md`, merge/update it from the bundle rather than creating a duplicate. Do not run installers automatically unless the user requests tool installation or the target workflow explicitly requires it.
 
 ### Full template import
 
@@ -175,7 +197,7 @@ At the end of a default integration, report briefly:
 - files created
 - files merged/updated
 - important target-specific adaptations made
-- any existing instructions intentionally preserved
+- any existing instructions and project-local diagnostic/security knowledge intentionally preserved
 - anything that could not be verified
 
-Do not present optional audit bundles or tool installation as completed unless they were actually requested and integrated.
+Do not present optional audit prompts, the full security-audit bundle, or tool installation as completed unless they were actually requested and integrated.
