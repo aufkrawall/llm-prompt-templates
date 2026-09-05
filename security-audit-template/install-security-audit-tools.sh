@@ -116,11 +116,29 @@ cmd_path() {
   command -v "$1" 2>/dev/null || true
 }
 
+tool_path() {
+  tool="$1"
+  p="$(cmd_path "$tool")"
+  if [ -n "$p" ]; then
+    printf '%s\n' "$p"
+    return 0
+  fi
+
+  local_candidate="$BIN_DIR/$tool"
+  if [ -f "$local_candidate" ] && [ -x "$local_candidate" ]; then
+    printf '%s\n' "$local_candidate"
+    return 0
+  fi
+
+  return 1
+}
+
 tool_version() {
   tool="$1"
   shift
-  if has_cmd "$tool"; then
-    "$tool" "$@" 2>/dev/null | head -n 1 | tr '\n' ' '
+  p="$(tool_path "$tool" 2>/dev/null || true)"
+  if [ -n "$p" ]; then
+    "$p" "$@" 2>/dev/null | head -n 1 | tr '\n' ' '
   fi
 }
 
@@ -154,8 +172,8 @@ detect_tool() {
   name="$1"
   category="$2"
   version_args="${3:---version}"
-  if has_cmd "$name"; then
-    p="$(cmd_path "$name")"
+  p="$(tool_path "$name" 2>/dev/null || true)"
+  if [ -n "$p" ]; then
     v="$(tool_version "$name" $version_args)"
     add_result "$name" "$category" "available" "$p" "" "$v"
     return 0
@@ -261,7 +279,7 @@ install_python_tool() {
   tool="$1"
   package="$2"
 
-  if has_cmd "$tool"; then
+  if [ -n "$(tool_path "$tool" 2>/dev/null || true)" ]; then
     return 0
   fi
 
@@ -291,7 +309,7 @@ install_python_tool() {
 }
 
 install_gitleaks() {
-  if has_cmd gitleaks; then return 0; fi
+  if [ -n "$(tool_path gitleaks 2>/dev/null || true)" ]; then return 0; fi
   url="$(github_latest_url gitleaks/gitleaks)"
   out="$BIN_DIR/gitleaks.tar.gz"
   download "$url" "$out" || return 1
@@ -304,7 +322,7 @@ install_gitleaks() {
 }
 
 install_osv_scanner() {
-  if has_cmd osv-scanner; then return 0; fi
+  if [ -n "$(tool_path osv-scanner 2>/dev/null || true)" ]; then return 0; fi
   url="$(github_latest_url google/osv-scanner)"
   out="$BIN_DIR/osv-scanner"
   download "$url" "$out" || return 1
@@ -316,7 +334,7 @@ install_osv_scanner() {
 }
 
 install_trufflehog() {
-  if has_cmd trufflehog; then return 0; fi
+  if [ -n "$(tool_path trufflehog 2>/dev/null || true)" ]; then return 0; fi
   url="$(github_latest_url trufflesecurity/trufflehog)"
   out="$BIN_DIR/trufflehog.tar.gz"
   download "$url" "$out" || return 1
@@ -425,9 +443,8 @@ write_outputs() {
 }
 
 detect_doc
-detect_platform_tools
 maybe_install_small
-# Re-detect after optional install.
+# Detect final state after optional installation so the manifest does not retain stale pre-install missing results.
 detect_platform_tools
 write_outputs
 
