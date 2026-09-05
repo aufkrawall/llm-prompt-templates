@@ -77,7 +77,7 @@ chmod +x ./install-security-audit-tools.sh
 ./install-security-audit-tools.sh
 ```
 
-Default mode is detection-only.
+Default mode is detection-only. Detection-only operation is normal and is not itself a warning; missing applicable tools may still produce warnings.
 
 Optional small installs:
 
@@ -90,6 +90,10 @@ Additional opt-ins:
 ```sh
 ./install-security-audit-tools.sh --install-small --include-semgrep --include-flawfinder --include-trufflehog
 ```
+
+The shell script performs its evidence-producing detection pass after optional installation so the final manifest reflects the post-install state rather than retaining stale pre-install `missing` results.
+
+For tool resolution, it checks the current `PATH` plus the script-managed `$INSTALL_ROOT/bin`, `PIPX_BIN_DIR` when set, common user-bin paths such as `~/.local/bin`, and the active Python 3 user-base `bin` directory when available. Portable or Python/pipx-installed tools therefore do not have to be added permanently to `PATH` merely to be detected by the current run.
 
 ## Evidence files
 
@@ -226,7 +230,7 @@ Recommended resolution order:
 1. generated `security-audit-tool-manifest.json`
 2. local `tool-paths.env`
 3. repository-local/pinned tool locations
-4. `Get-Command`, `where.exe`, `command -v`, or equivalent discovery
+4. script-managed/local user tool roots and `Get-Command`, `where.exe`, `command -v`, or equivalent discovery
 5. documented project-specific known-good paths
 6. safe fallbacks
 
