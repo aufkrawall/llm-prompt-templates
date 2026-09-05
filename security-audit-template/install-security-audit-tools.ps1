@@ -741,7 +741,6 @@ function Invoke-UninstallMode {
   Write-Host "RemoveSharedPackages: $RemoveSharedPackages"
   Write-Host "RemovePythonPackages: $RemovePythonPackages"
   Write-Host "WhatIfOnly: $WhatIfOnly"
-if ($Uninstall) { Invoke-UninstallMode }
 
   Remove-PathIfExists -Path $InstallRoot
   Add-Result -Name "InstallRoot" -Category "uninstall" -Status "removed-or-not-present" -Path $InstallRoot -Notes "Managed portable tools and evidence root"
