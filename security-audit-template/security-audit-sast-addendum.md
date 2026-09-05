@@ -30,6 +30,7 @@ Examples include:
 
 - `flawfinder` for C/C++ risky API usage
 - `semgrep` for structural and custom pattern rules
+- `bandit` for Python AST-based security checks
 - `CodeQL` for semantic and data-flow analysis
 - language-native linters and analyzers where applicable
 
@@ -51,6 +52,8 @@ The following remain opt-in:
 - language toolchain-native scanners such as `cargo-audit` and `govulncheck`, because they require existing Rust/Go toolchains
 - platform/runtime tools such as WinDbg, LLVM, FFmpeg, and GUI Sysinternals
 
+`bandit` is also useful for Python projects, but the current installer does not manage it. Use it when already available, or install it only with explicit authorization under the same Python-environment caution applied to other pip/pipx-based scanners.
+
 Use `-Minimal` or the `-Skip*Install` switches when a non-mutating detector-only setup is required.
 
 ## General rules
@@ -68,6 +71,7 @@ Use `-Minimal` or the `-Skip*Install` switches when a non-mutating detector-only
 | Tool | Category / Purpose | Verification command | Typical audit command |
 |---|---|---|---|
 | `semgrep` | Lightweight semantic SAST | `semgrep --version` | `semgrep --config=auto .` |
+| `bandit` | Python AST-based SAST | `bandit --version` | `bandit -r .` |
 | `flawfinder` | C/C++ risky API scan | `flawfinder --version` | `flawfinder .` |
 | `gitleaks` | Source/history secrets scanning | `gitleaks version` | `gitleaks detect --source=. --verbose` |
 | `trufflehog` | Deeper secrets scanning | `trufflehog --version` | `trufflehog filesystem .` |
@@ -87,7 +91,7 @@ Use relevant tools based on project files:
 | C/C++ source | `semgrep`, `flawfinder`, compiler warnings, clang-tidy, sanitizers |
 | `Cargo.lock` | `cargo audit`, `osv-scanner` |
 | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` | `npm audit` where applicable, `osv-scanner` |
-| `requirements.txt`, `pyproject.toml`, `poetry.lock`, `Pipfile.lock` | `pip-audit`, `osv-scanner` |
+| `requirements.txt`, `pyproject.toml`, `poetry.lock`, `Pipfile.lock`, Python source | `bandit` and/or `semgrep` for source SAST; `pip-audit` and `osv-scanner` for dependencies |
 | `go.mod` | `govulncheck`, `go list -m -json all`, `osv-scanner` |
 | `pom.xml`, `build.gradle`, `gradle.lockfile` | ecosystem dependency tree tooling, `osv-scanner` |
 | native binaries | platform binary hardening tools from `debug-tools-security-audit.md` |
