@@ -33,6 +33,7 @@ In short:
 | Path | Purpose |
 |---|---|
 | `audit-template/audit-template-v3-polyglot.md` | Broad application/code/runtime/artifact quality audit across multiple languages and platforms. |
+| `audit-template/audit-language-profiles-addendum.md` | Required general-audit companion with first-class JavaScript/TypeScript and Java/Kotlin/JVM profiles plus deterministic score-calculation guidance. |
 | `security-audit-template/security-audit-template.md` | Detailed security/privacy audit with language-, platform-, runtime-, binary-, and tooling-specific coverage. |
 | `security-audit-template/security-audit-sast-addendum.md` | SAST, secrets, dependency scanning, and Linux/macOS tooling guidance. |
 | `security-audit-template/llm-wiki/debug-tools-security-audit.md` | Generic local security/debug/binary-analysis tool inventory to customize per project. Included in the default project integration. |
@@ -55,9 +56,16 @@ An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generi
 
 ### General quality audit
 
-Copy or provide `audit-template/audit-template-v3-polyglot.md` to the auditing agent and point it at the target repository.
+For full intended coverage, provide both files to the auditing agent:
 
-The template defaults to audit-only behavior and writes one audit report under `audit/` unless another output path is requested.
+```text
+audit-template/audit-template-v3-polyglot.md
+audit-template/audit-language-profiles-addendum.md
+```
+
+Apply the main template plus every applicable companion profile. The addendum is not optional for JavaScript/TypeScript or Java/Kotlin/JVM targets and also defines deterministic score-calculation guidance for the general audit.
+
+The main template defaults to audit-only behavior and writes one audit report under `audit/` unless another output path is requested.
 
 ### Security audit
 
@@ -103,6 +111,7 @@ Keep one-off incident history and temporary investigation details out of the reu
 - Apply language, platform, binary-hardening, and tooling checks conditionally rather than forcing irrelevant controls onto unrelated projects.
 - Prefer root-cause fixes and evidence-backed findings over checklist output.
 - Keep reusable templates generic; add project-specific paths and diagnostics only in the copied project's local files.
+- When an audit family has a documented companion/addendum, preserve that relationship instead of silently using only the main prompt.
 
 ## License
 
