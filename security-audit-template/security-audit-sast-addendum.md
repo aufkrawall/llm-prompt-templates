@@ -5,99 +5,110 @@ Copyright (c) 2026 aufkrawall
 
 # Security Audit Addendum — Static Analysis and Cross-Platform Tooling
 
-This document supplements `llm-wiki/debug-tools-security-audit.md` with source-level static analysis, secrets detection, dependency/supply-chain scanning, and Linux/macOS tooling guidance.
+This document supplements `debug-tools-security-audit.md` by defining local verification rules for source-level static analysis, secrets detection, dependency/supply-chain scanning, and Linux/macOS tool parity.
 
-Treat this file as audit guidance, not as proof that any tool is installed, appropriate, configured, or complete.
+Use this file from `security-audit-sast-addendum.md`.
 
-## Core evidence rule
+## Evidence, coverage, and scoring semantics
 
-Automated scan results are evidence, not proof of security. A clean scan does not prove absence of vulnerabilities, and an unavailable scanner does not prove the software is less secure.
+Automated scan results are evidence, not proof of security. A clean scan does not prove absence of vulnerabilities, and an unavailable scanner does not by itself prove the product is less secure.
 
-- Triage findings for reachability, exploitability, mitigations, false positives, and rule coverage before reporting them as confirmed defects.
-- Missing applicable tools reduce **coverage and confidence**. Do not automatically lower the product's security score solely because a preferred scanner is unavailable.
-- Lower a substantive security/readiness score only when the missing evidence prevents verification of a security requirement, release criterion, supported target, or material risk area.
-- If an audit has an explicit strict coverage gate, report failure of that gate separately from confirmed product vulnerabilities.
+Keep these concepts distinct:
 
-## Safety and execution rules
+- **Product/security score:** evidence-backed state of the audited product and its controls.
+- **Coverage/confidence:** how completely the audit could verify that state.
+- **Readiness:** whether available evidence is sufficient for the intended release or assurance claim.
 
-- Verify each tool exists and runs before relying on it.
-- Prefer repository-pinned, local, offline, or non-uploading modes.
-- Do not upload proprietary source, crash dumps, logs, captures, symbols, credentials, or secrets to external services unless explicitly approved.
-- Do not install global packages or mutate user-level toolchains merely to increase scanner count unless authorized.
-- Inspect repository-controlled hooks, plugins, build scripts, analyzers, and downloaded tools before executing them when they can run arbitrary code.
-- If `.git/` is unavailable, state whether secrets/history checks covered only the working tree.
-- Record unavailable high-value checks as coverage gaps with the affected assurance area and any fallback used.
+Missing applicable tools must be reported as coverage gaps and lower confidence. Lower a substantive product/security score only when the missing evidence demonstrates an unmet requirement, prevents verification of a required release/security criterion, or the scoring rubric explicitly measures verification coverage. Strict required-tool gates, when explicitly enabled, may fail independently of confirmed product vulnerabilities.
+
 
 ## Static Application Security Testing (SAST)
 
-SAST analyzes source without exercising the application runtime. Relevant tools may include:
+Static Application Security Testing means automated source-code analysis performed without running the program. SAST tools scan for security-relevant patterns, unsafe APIs, data-flow risks, injection paths, authorization mistakes, secrets exposure, and dependency exposure.
 
-| Tool | Typical purpose | Important limitation |
-|---|---|---|
-| `semgrep` | Structural/custom pattern and data-flow rules | Coverage depends heavily on selected rules/configuration |
-| `CodeQL` | Semantic/data-flow analysis | Heavier setup; language/build extraction may be required |
-| `flawfinder` | C/C++ risky API triage | Pattern-oriented; expect false positives and blind spots |
-| compiler/language analyzers | Type, lifetime, nullability, warnings, unsafe patterns | Limited to implemented analyzer checks |
+Examples include:
 
-Use project-specific rules when available. Generic/autoconfigured scans are useful discovery passes but are not substitutes for manual threat-oriented review.
+- `flawfinder` for C/C++ risky API usage
+- `semgrep` for structural and custom pattern rules
+- `CodeQL` for semantic and data-flow analysis
+- language-native linters and analyzers where applicable
 
-## Secrets and dependency scanning
+SAST results are evidence, not proof of security. Findings must be triaged for reachability, exploitability, false positives, and missing rule coverage.
 
-| Tool | Category / purpose | Typical verification |
-|---|---|---|
-| `gitleaks` | Working-tree/history secrets detection | `gitleaks version` |
-| `trufflehog` | Deeper secrets discovery | `trufflehog --version` |
-| `osv-scanner` | Dependency vulnerability scanning | `osv-scanner --version` |
-| `cargo-audit` | Rust dependency advisories | `cargo audit --version` |
-| `npm` / ecosystem package manager | Node dependency advisories | check package-manager version first |
-| `pip-audit` | Python dependency advisories | `pip-audit --version` |
-| `govulncheck` | Go vulnerability analysis | `govulncheck -version` |
 
-Network-backed advisory checks may contact external services. Use them only when network access is allowed for the audit environment. Prefer local caches/databases when the environment requires offline operation.
+## Windows installer default policy
+
+On Windows, `install-security-audit-tools.ps1` installs portable, low-side-effect scanners by default where possible:
+
+- `gitleaks`
+- `osv-scanner`
+
+The following remain opt-in:
+
+- `CodeQL`, because it is large
+- `trufflehog`, because it is deeper/heavier/noisier than `gitleaks`
+- `semgrep`, `flawfinder`, and `pip-audit`, because they use pipx/Python user installs and can mutate the user Python environment
+- language toolchain-native scanners such as `cargo-audit` and `govulncheck`, because they require existing Rust/Go toolchains
+- platform/runtime tools such as WinDbg, LLVM, FFmpeg, and GUI Sysinternals
+
+Use `-Minimal` or the `-Skip*Install` switches when a non-mutating detector-only setup is required.
+
+## General rules
+
+- Use this document as audit guidance, not proof that tools are installed.
+- Verify each tool exists and runs before relying on it.
+- Prefer local/offline or non-uploading modes.
+- Do not upload proprietary source, crash dumps, logs, captures, or secrets to external services unless explicitly approved.
+- Missing applicable tools must produce a warning, a coverage note, and a confidence impact in the audit report; scoring impact follows the evidence/coverage rules above.
+- A clean scan is not proof of security. Triage for reachability, exploitability, false positives, and rule coverage.
+- If `.git/` is unavailable, say whether only the working tree was scanned.
+
+## Static analysis and supply-chain tools
+
+| Tool | Category / Purpose | Verification command | Typical audit command |
+|---|---|---|---|
+| `semgrep` | Lightweight semantic SAST | `semgrep --version` | `semgrep --config=auto .` |
+| `flawfinder` | C/C++ risky API scan | `flawfinder --version` | `flawfinder .` |
+| `gitleaks` | Source/history secrets scanning | `gitleaks version` | `gitleaks detect --source=. --verbose` |
+| `trufflehog` | Deeper secrets scanning | `trufflehog --version` | `trufflehog filesystem .` |
+| `osv-scanner` | Dependency vulnerability scanning | `osv-scanner --version` | `osv-scanner -r .` |
+| `cargo-audit` | Rust dependency advisories | `cargo audit --version` | `cargo audit` |
+| `npm` | Node dependency advisories | `npm --version` | `npm audit` |
+| `pip-audit` | Python dependency advisories | `pip-audit --version` | `pip-audit` |
+| `govulncheck` | Go vulnerability analysis | `govulncheck -version` | `govulncheck ./...` |
 
 ## Tool applicability
 
-Select tools from project evidence rather than running every scanner unconditionally:
+Use relevant tools based on project files:
 
-| Project evidence | Useful checks |
+| Project evidence | Suggested checks |
 |---|---|
-| `.git/` | secrets scan of current tree and, when relevant, history |
-| C/C++ source | compiler warnings, clang-tidy/other analyzers, Semgrep/flawfinder where useful, sanitizers for suitable runtime paths |
-| `Cargo.lock` | `cargo audit` and/or OSV-style dependency scanning |
-| `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` | ecosystem advisory tooling and/or OSV-style scanning |
-| `requirements.txt`, `pyproject.toml`, `poetry.lock`, `Pipfile.lock` | Python advisory tooling and/or OSV-style scanning |
-| `go.mod` | `govulncheck`, module inspection, OSV-style scanning |
-| `pom.xml`, Gradle files/locks | ecosystem dependency-tree/advisory tooling |
-| native binaries | platform binary hardening and dependency inspection |
+| `.git/` | `gitleaks`, optionally `trufflehog` |
+| C/C++ source | `semgrep`, `flawfinder`, compiler warnings, clang-tidy, sanitizers |
+| `Cargo.lock` | `cargo audit`, `osv-scanner` |
+| `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` | `npm audit` where applicable, `osv-scanner` |
+| `requirements.txt`, `pyproject.toml`, `poetry.lock`, `Pipfile.lock` | `pip-audit`, `osv-scanner` |
+| `go.mod` | `govulncheck`, `go list -m -json all`, `osv-scanner` |
+| `pom.xml`, `build.gradle`, `gradle.lockfile` | ecosystem dependency tree tooling, `osv-scanner` |
+| native binaries | platform binary hardening tools from `debug-tools-security-audit.md` |
 
-Do not penalize a project for a scanner that is irrelevant to its languages, artifact types, threat model, or supported platforms.
+## Linux x64 / ARM64 hardening and runtime primitives
 
-## Windows installer policy
-
-`install-security-audit-tools.ps1` may install or discover audit tools. Keep conservative defaults:
-
-- portable, low-side-effect tools may be installed by default where the script documents that behavior;
-- large tools, Python user-environment changes, or toolchain-specific additions should remain opt-in;
-- detector-only or minimal modes should remain available for environments where mutation is undesirable.
-
-After installation or discovery, verify resolved executable paths. A successful installer exit does not itself prove that every requested tool is usable.
-
-## Linux x64 / ARM64 inspection
-
-Useful tools include:
+Verify and use where available:
 
 | Tool | Purpose |
 |---|---|
 | `file` | Architecture and ABI metadata |
-| `readelf` | ELF headers, program headers, dynamic metadata, hardening evidence |
-| `objdump` | Headers, dependencies, disassembly |
+| `readelf` | ELF headers, dynamic section, RELRO/NX/PIE evidence |
+| `objdump` | Program headers, imports, disassembly |
 | `checksec` | Hardening summary |
-| `patchelf --print-rpath` | RPATH/RUNPATH inspection |
-| `strings` / `nm` | Embedded strings and symbols |
-| `strace` | Runtime syscall tracing |
+| `patchelf` | RPATH/RUNPATH inspection |
+| `strings` | Embedded string/secrets review |
+| `nm` | Symbol inspection |
+| `strace` | File/network/process syscall tracing |
 | `gdb` / `lldb` | Debugging and core analysis |
 
-Representative static commands:
+Preferred commands:
 
 ```sh
 file ./binary
@@ -105,52 +116,79 @@ readelf -h ./binary
 readelf -l ./binary
 readelf -d ./binary
 objdump -p ./binary
+readelf -d ./binary | grep -E 'RPATH|RUNPATH|NEEDED|BIND_NOW'
 checksec --file=./binary
 ```
 
-Do not use `ldd` on untrusted binaries. Prefer static metadata inspection such as `readelf -d` or `objdump -p`. Use `ldd` only on trusted local build artifacts.
+Do not use `ldd` on untrusted binaries. Use `ldd` only on trusted local build artifacts.
 
-## macOS x64 / ARM64 inspection
+## macOS x64 / ARM64 hardening and runtime primitives
 
-Useful tools include:
+Verify and use where available:
 
 | Tool | Purpose |
 |---|---|
 | `file` | Architecture and Mach-O metadata |
-| `codesign` | Signature, entitlements, hardened-runtime metadata |
-| `otool` | Load commands, linked libraries, RPATH |
-| `lipo` | Universal-binary slice inspection |
-| `strings` / `nm` | Embedded strings and symbols |
-| `dwarfdump` | dSYM/debug information |
+| `codesign` | Signature, hardened runtime, entitlements |
+| `otool` | Load commands, dynamic libraries, RPATH |
+| `lipo` | Universal binary slice inspection |
+| `strings` | Embedded string/secrets review |
+| `nm` | Symbol inspection |
+| `dwarfdump` | dSYM/debug info inspection |
 | `lldb` | Debugging |
 | `spctl` | Gatekeeper assessment where relevant |
-| `log`, `fs_usage`, `dtruss` | Runtime diagnostics where permitted |
+| `log` | Unified log evidence |
+| `fs_usage` / `dtruss` | Runtime tracing where permitted |
 
-Representative commands:
+Preferred commands:
 
 ```sh
 file ./binary
 codesign -dvv ./binary
 codesign -d --entitlements - ./binary
 otool -L ./binary
-otool -l ./binary
+otool -l ./binary | grep -A3 -E 'LC_RPATH|LC_LOAD_DYLIB'
 lipo -info ./binary
 ```
 
-For universal binaries, inspect each relevant slice independently when architecture-specific assurance matters.
+For universal binaries, inspect each slice independently.
 
-## Reporting unavailable coverage
+## Required warning language
 
-Use concise coverage notes such as:
+Use warnings like:
 
 ```text
-COVERAGE GAP: semgrep was applicable but unavailable; source-level SAST coverage is reduced. Manual review and compiler diagnostics were used as partial fallback.
-COVERAGE GAP: gitleaks was unavailable while Git history was present; history-level secrets-scanning confidence is reduced.
-COVERAGE GAP: the Linux ARM64 artifact was unavailable; binary-hardening claims for that supported target were not verified.
+WARNING: semgrep was applicable but unavailable; source-level SAST confidence is reduced.
+WARNING: gitleaks was unavailable and .git history was present; secrets-scanning confidence is reduced.
+WARNING: osv-scanner was unavailable despite lockfiles/manifests; dependency vulnerability confidence is reduced.
+WARNING: Linux ARM64 binary was not inspected with readelf/objdump/checksec; platform binary-hardening confidence is reduced.
+WARNING: macOS universal binary was shipped but individual slices were not inspected independently.
 ```
 
-Reflect material coverage gaps in the executive summary, relevant scorecard notes, readiness assessment, and verification section. Keep **coverage/confidence** distinct from **confirmed product defects**.
+## Report impact
+
+Missing applicable SAST, secrets, dependency, or platform tools must affect:
+
+- Executive Summary and Overall Security Rating notes
+- Security Scorecard notes and confidence
+- relevant findings, if coverage loss hides material risk
+- Security Production-Readiness Assessment
+- Final Verification Checklist
+
+Do not convert a missing tool into a vulnerability finding by itself. Apply substantive score penalties only under the evidence/coverage rules above.
 
 ## Full install mode
 
-If the installer supports a full mode, reserve it for dedicated audit environments where larger downloads and user-level package-manager changes are acceptable. Cleanup behavior should be explicit and should not remove unrelated shared packages by default.
+`install-security-audit-tools.ps1 -Full` opts into all supported install paths, including Python/pip-based SAST tools and large tools such as CodeQL.
+
+Use full mode only on dedicated audit machines or environments where package-manager and Python user-environment mutations are acceptable.
+
+For cleanup, use:
+
+```powershell
+.\install-security-audit-tools.ps1 -Uninstall -RemoveSharedPackages -RemovePythonPackages
+```
+
+Default uninstall removes only the script-managed portable install root.
+
+Full mode should record resolved executable paths after download/extraction, not just archive paths. Existing archives should be reprocessed to ensure the manifest contains usable tool paths.
