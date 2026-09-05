@@ -21,6 +21,12 @@ Keep these concepts distinct:
 
 Missing applicable tools must be reported as coverage gaps and lower confidence. Lower a substantive product/security score only when the missing evidence demonstrates an unmet requirement, prevents verification of a required release/security criterion, or the scoring rubric explicitly measures verification coverage. Strict required-tool gates, when explicitly enabled, may fail independently of confirmed product vulnerabilities.
 
+### Score calculation integrity
+
+When the security audit requires weighted score arithmetic and a calculator, shell, scripting runtime, spreadsheet, or equivalent deterministic arithmetic tool is available, compute the score mechanically rather than estimating it mentally. Preserve the category scores, applicable positive weights, excluded/N/A categories, renormalization basis, unrounded result, and final rounding rule so another reviewer can reproduce the total.
+
+Do not silently round intermediate values. If deterministic calculation tooling is unavailable, show the arithmetic explicitly and lower confidence in the numerical total if it cannot be independently checked. A mathematically precise total does not increase substantive security confidence when the underlying evidence is weak.
+
 
 ## Static Application Security Testing (SAST)
 
@@ -65,6 +71,8 @@ Use `-Minimal` or the `-Skip*Install` switches when a non-mutating detector-only
 - Missing applicable tools must produce a warning, a coverage note, and a confidence impact in the audit report; scoring impact follows the evidence/coverage rules above.
 - A clean scan is not proof of security. Triage for reachability, exploitability, false positives, and rule coverage.
 - If `.git/` is unavailable, say whether only the working tree was scanned.
+- If `.git/` is present and history is relevant, determine whether the checkout is shallow before claiming history coverage. Prefer `git rev-parse --is-shallow-repository` where supported. A shallow clone must be reported as partial history coverage even if the available commits scan cleanly.
+- When relevant, note partial/filter-clone state, missing remote objects, detached/synthetic CI checkouts, or other conditions that make repository history incomplete. Do not describe the scan as "full history" unless the available repository evidence supports that claim.
 
 ## Static analysis and supply-chain tools
 
@@ -87,7 +95,7 @@ Use relevant tools based on project files:
 
 | Project evidence | Suggested checks |
 |---|---|
-| `.git/` | `gitleaks`, optionally `trufflehog` |
+| `.git/` | determine full/shallow/partial history coverage; `gitleaks`, optionally `trufflehog` |
 | C/C++ source | `semgrep`, `flawfinder`, compiler warnings, clang-tidy, sanitizers |
 | `Cargo.lock` | `cargo audit`, `osv-scanner` |
 | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` | `npm audit` where applicable, `osv-scanner` |
@@ -164,6 +172,7 @@ Use warnings like:
 ```text
 WARNING: semgrep was applicable but unavailable; source-level SAST confidence is reduced.
 WARNING: gitleaks was unavailable and .git history was present; secrets-scanning confidence is reduced.
+WARNING: repository checkout is shallow; secrets/history scanning covered only the available partial history and must not be reported as a full-history clean result.
 WARNING: osv-scanner was unavailable despite lockfiles/manifests; dependency vulnerability confidence is reduced.
 WARNING: Linux ARM64 binary was not inspected with readelf/objdump/checksec; platform binary-hardening confidence is reduced.
 WARNING: macOS universal binary was shipped but individual slices were not inspected independently.
@@ -171,7 +180,7 @@ WARNING: macOS universal binary was shipped but individual slices were not inspe
 
 ## Report impact
 
-Missing applicable SAST, secrets, dependency, or platform tools must affect:
+Missing applicable SAST, secrets, dependency, or platform tools and incomplete repository history must affect:
 
 - Executive Summary and Overall Security Rating notes
 - Security Scorecard notes and confidence
@@ -179,7 +188,7 @@ Missing applicable SAST, secrets, dependency, or platform tools must affect:
 - Security Production-Readiness Assessment
 - Final Verification Checklist
 
-Do not convert a missing tool into a vulnerability finding by itself. Apply substantive score penalties only under the evidence/coverage rules above.
+Do not convert a missing tool or shallow checkout into a vulnerability finding by itself. Apply substantive score penalties only under the evidence/coverage rules above.
 
 ## Full install mode
 
