@@ -124,10 +124,39 @@ tool_path() {
     return 0
   fi
 
-  local_candidate="$BIN_DIR/$tool"
-  if [ -f "$local_candidate" ] && [ -x "$local_candidate" ]; then
-    printf '%s\n' "$local_candidate"
+  candidate="$BIN_DIR/$tool"
+  if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+    printf '%s\n' "$candidate"
     return 0
+  fi
+
+  if [ -n "${PIPX_BIN_DIR:-}" ]; then
+    candidate="$PIPX_BIN_DIR/$tool"
+    if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+
+  if [ -n "${HOME:-}" ]; then
+    for user_bin in "$HOME/.local/bin" "$HOME/bin"; do
+      candidate="$user_bin/$tool"
+      if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done
+  fi
+
+  if has_cmd python3; then
+    python_user_base="$(python3 -m site --user-base 2>/dev/null || true)"
+    if [ -n "$python_user_base" ]; then
+      candidate="$python_user_base/bin/$tool"
+      if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    fi
   fi
 
   return 1
@@ -348,7 +377,7 @@ install_trufflehog() {
 
 maybe_install_small() {
   if [ "$INSTALL_SMALL" -eq 0 ]; then
-    warn "Install mode was not enabled. No tools were installed; detection-only evidence was generated."
+    echo "Detection-only mode: no tools were installed."
     return
   fi
 
