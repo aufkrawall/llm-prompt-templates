@@ -62,6 +62,25 @@ Check goroutine ownership/lifetime/leaks; channel ownership, closure, blocking, 
 
 Use repository-supported `go test ./...` and `go vet ./...`; where supported, run representative tests/workloads with the race detector. Use fuzzing for exposed parsers/decoders/protocols and malformed-input boundaries when feasible. Verify modules and dependency state with standard Go tooling; use `govulncheck` when already available or authorized. For CGO, inspect C ownership, pointer-passing rules, callbacks, thread affinity, ABI/layout, linker flags, and C-side sanitizer/analysis coverage as applicable.
 
+### Python profile
+Record supported Python versions and interpreters (for example CPython/PyPy), package layout, `pyproject.toml`/`setup.cfg`/`setup.py` usage, build backend, package manager/environment assumptions, lockfile and constraints policy, optional dependency groups/extras, entry points, typing configuration, test/lint/type-check tooling, generated code, native extensions, and produced package/application artifacts.
+
+Check import and package correctness: `src` versus flat layout, namespace packages, relative/absolute imports, circular imports, import-time side effects, `sys.path` manipulation, dynamic imports/plugin discovery, editable-install versus installed-package behavior, and mutable module-global state. Check common Python semantic hazards including mutable default arguments, late-bound closures, shared class attributes, shallow-copy/aliasing mistakes, identity-versus-equality errors, iterator/generator exhaustion, hash/equality invariant violations, dataclass/default-factory mistakes, descriptor/property misuse, accidental shadowing of builtins/modules, and behavior that depends on dictionary/set ordering or implementation-specific details beyond the declared support policy.
+
+Check exception and resource behavior: overly broad or bare `except`, silently swallowed failures, lost exception chaining/context, cleanup in `finally`, context-manager correctness, temporary-file/directory lifecycle, files/sockets/database cursors/HTTP responses/subprocesses, partial initialization, and shutdown. For subprocesses, inspect argument construction, shell use, encoding, timeouts, pipe deadlocks, process-tree cleanup, and platform differences. For dynamic execution or deserialization, treat `eval`/`exec`, pickle-family formats, YAML/object loaders, template evaluation, import hooks, and plugin loading as security-sensitive according to reachability and trust boundaries.
+
+Check async and concurrency correctness: un-awaited coroutines, orphaned tasks, task exception handling, cancellation propagation, blocking work on event loops, async generator/context-manager cleanup, timeout semantics, thread-pool/process-pool ownership, shared-state races, GIL-dependent assumptions, multiprocessing start-method differences, child-process shutdown, pickling requirements, signals, and thread/process affinity where relevant. Distinguish CPython implementation behavior from language guarantees when portability matters.
+
+Check typing and data-model correctness where the project uses typing: `Any` leakage across important boundaries, incorrect `Optional`/narrowing assumptions, unsafe casts, variance/generic/Protocol/overload mismatches, runtime/type-checker divergence, incomplete exported annotations, `py.typed` packaging for typed libraries, and model/schema behavior for dataclasses, attrs, Pydantic, ORM models, or equivalent frameworks when present. Treat type-checker output as evidence, not a substitute for runtime validation.
+
+Check tests and quality gates: repository-supported `pytest`/`unittest` commands; fixture scope and cleanup; parametrization boundaries; test isolation from order, time, locale, environment, filesystem, network, and global state; async-test configuration; monkeypatch/mock cleanup; warning handling; flaky/retry masking; representative integration tests; and coverage of user-visible failure, packaging, import, and concurrency paths. Use coverage numbers as supporting evidence rather than a quality score by themselves.
+
+Check performance and scalability for Python-specific failure modes: accidental quadratic loops or repeated membership scans, repeated serialization/parsing/conversion, unbounded comprehensions/queues/caches, eager materialization of large iterables, excessive object churn, hot Python loops where vectorized/native alternatives are already part of the project design, pathological regex/backtracking, recursive depth hazards, and memory retention through globals/caches/closures/reference cycles. Do not recommend native/vectorized rewrites without evidence that the path is material.
+
+Check packaging and reproducibility: wheel/sdist contents, package data/resources, entry points/scripts, dependency and Python-version metadata, extras, build isolation, version generation, source inclusion/exclusion, reproducible clean builds, installed-package smoke behavior, editable-install masking, wheel compatibility tags, platform-specific wheels, and source-build fallback. For C/C++/Rust/Cython/cffi/ctypes or other native extensions, also apply the relevant native/FFI profile to ownership, ABI/layout, error translation, GIL handling, callbacks, build/link flags, wheel tags, and supported architectures.
+
+Prefer repository-declared commands and pinned tools. Where applicable and already available or explicitly authorized, use `python -m pytest` or the project's test runner, `ruff`/Flake8/Pylint as configured, `mypy`/Pyright as configured, `python -m build`, package-install smoke tests in an isolated environment, `pip check`, dependency/advisory checks, and Python SAST tooling. Do not silently mutate the user's global interpreter or package environment; prefer the repository's existing environment or an authorized ephemeral virtual environment. Do not introduce a new linter, formatter, type checker, or packaging policy merely because it is common in Python.
+
 ### Mixed/other language profile
 For Java/Kotlin, Swift/Objective-C, Zig, Python native extensions, JavaScript/TypeScript native addons, WebAssembly, or other ecosystems, derive an equivalent profile from the same risk classes: language/runtime safety model, build/package hooks, dependency resolution, feature/configuration matrix, concurrency model, resource ownership, FFI/native boundaries, deployment artifact, static/dynamic analysis, platform compatibility, and runtime-specific failure modes. Do not force C/C++ checks onto unrelated runtimes.
 
@@ -72,6 +91,7 @@ Classify each release-relevant artifact before inspecting it:
 - **.NET managed/JIT artifact**: inspect assemblies plus publish output, target framework/runtime metadata, native dependencies, runtimeconfig/deps files, RID assumptions, trimming/single-file/ReadyToRun settings, debug symbols, reflection/dynamic-loading expectations, and published-artifact behavior. If Native AOT is used, also apply native inspection.
 - **Rust native artifact**: apply native inspection plus crate type, panic strategy where relevant, exported ABI, FFI/native dependencies, feature/profile differences, and any unsafe/native runtime assumptions. Do not assume C/C++ mitigation defaults apply identically.
 - **Go native artifact**: apply relevant native-format/dependency/loader/architecture/embedded-data checks plus Go build info, CGO/native dependencies, build tags, and runtime behavior. Do not report absent C/C++-specific instrumentation as a defect without applicability evidence.
+- **Python package/application artifact**: inspect wheel/sdist contents and metadata, supported-Python markers, dependency/extras metadata, entry points, package data/resources, accidental source/test/config/secret leakage, source-build behavior, editable-versus-installed differences, wheel/ABI/platform tags, native extensions and bundled libraries, and runtime behavior from the installed artifact. For zipapps, frozen/bundled applications, or native launchers, inspect the packaged interpreter/runtime/resources and apply native artifact checks to native components where applicable.
 - **WebAssembly or other VM/intermediate artifacts**: inspect imports/exports, capabilities, embedded data, runtime/host assumptions, debug/source-map leakage, size, optimization mode, sandbox boundary, and host-call validation as relevant.
 - **Library/source-only deliverable**: inspect API/ABI/package artifact correctness and consumer compatibility. Do not invent a binary-hardening requirement when no deployable binary is part of the supported deliverable.
 
@@ -115,19 +135,19 @@ Withhold the overall score if any applicable release-critical category is unasse
 
 Scale: 10 excellent, 8 good, 7 acceptable, 6 marginal, 5 risky, 4 poor, 2 critical weakness, 0 demonstrated broken/unsafe.
 
-| Category | Baseline / Mixed | C | C++ | Rust | C# / .NET | Go | Score | Coverage | Confidence | Notes |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
-| Application behavior, user journeys/API contracts, and feature correctness | 18% | 17% | 17% | 18% | 19% | 19% | | | | |
-| Reliability, failure recovery, concurrency, cancellation, and process/runtime stability | 14% | 13% | 13% | 14% | 15% | 16% | | | | |
-| Memory, resource, lifetime, unsafe/interop/FFI, and runtime safety | 11% | 17% | 16% | 13% | 8% | 8% | | | | |
-| Security, privacy leakage, and source-level threat model | 12% | 11% | 11% | 11% | 12% | 12% | | | | |
-| Performance, cost, energy, and resource efficiency | 8% | 8% | 8% | 8% | 8% | 9% | | | | |
-| Storage, filesystem, persistence, and recovery | 7% | 6% | 6% | 6% | 7% | 6% | | | | |
-| Architecture, maintainability, and code consistency | 8% | 7% | 8% | 8% | 9% | 8% | | | | |
-| Logging, diagnostics, and observability | 4% | 4% | 4% | 4% | 5% | 4% | | | | |
-| Tests, regression hardening, and quality gates | 9% | 8% | 8% | 9% | 9% | 9% | | | | |
-| Source build, tooling, static/dynamic analysis, publish, and artifact inspection | 6% | 7% | 7% | 6% | 5% | 6% | | | | |
-| Dependencies, supply chain, licensing, API/config/package/docs compatibility | 3% | 2% | 2% | 3% | 3% | 3% | | | | |
+| Category | Baseline / Mixed | C | C++ | Rust | C# / .NET | Go | Python | Score | Coverage | Confidence | Notes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| Application behavior, user journeys/API contracts, and feature correctness | 18% | 17% | 17% | 18% | 19% | 19% | 20% | | | | |
+| Reliability, failure recovery, concurrency, cancellation, and process/runtime stability | 14% | 13% | 13% | 14% | 15% | 16% | 15% | | | | |
+| Memory, resource, lifetime, unsafe/interop/FFI, and runtime safety | 11% | 17% | 16% | 13% | 8% | 8% | 7% | | | | |
+| Security, privacy leakage, and source-level threat model | 12% | 11% | 11% | 11% | 12% | 12% | 13% | | | | |
+| Performance, cost, energy, and resource efficiency | 8% | 8% | 8% | 8% | 8% | 9% | 8% | | | | |
+| Storage, filesystem, persistence, and recovery | 7% | 6% | 6% | 6% | 7% | 6% | 7% | | | | |
+| Architecture, maintainability, and code consistency | 8% | 7% | 8% | 8% | 9% | 8% | 9% | | | | |
+| Logging, diagnostics, and observability | 4% | 4% | 4% | 4% | 5% | 4% | 4% | | | | |
+| Tests, regression hardening, and quality gates | 9% | 8% | 8% | 9% | 9% | 9% | 10% | | | | |
+| Source build, tooling, static/dynamic analysis, publish, and artifact inspection | 6% | 7% | 7% | 6% | 5% | 6% | 4% | | | | |
+| Dependencies, supply chain, licensing, API/config/package/docs compatibility | 3% | 2% | 2% | 3% | 3% | 3% | 3% | | | | |
 
 Each profile totals 100%. If accessibility/i18n or domain-specific safety/failsafes is central, give it an explicit positive weight and reduce less relevant categories so the total remains 100%; document the adjustment. For unusual targets (embedded, kernel/driver, safety-critical, heavy FFI, parser service, plugin host, etc.), adjust weights to the actual risk model and show the before/after rationale.
 
@@ -205,6 +225,7 @@ Language-specific implementation rules:
 - **Rust**: minimize and document unsafe surface; preserve safety invariants, feature behavior, MSRV/edition/public API/semver expectations, and FFI layout/unwind contracts.
 - **C#/.NET**: preserve TFM/public API/nullability/serialization/config contracts; dispose owned resources; preserve async/cancellation semantics; validate supported publish modes after reflection/dynamic-code changes.
 - **Go**: preserve exported API/module compatibility and context/error contracts; prevent goroutine/resource leaks; make channel ownership and shutdown explicit; validate with the race detector where the changed path is concurrent and supported.
+- **Python**: preserve supported interpreter versions, public/import/package/entry-point behavior, serialization/config contracts, typing promises, async/cancellation semantics, and wheel/sdist compatibility; avoid hidden global state and environment-dependent imports; close owned resources/processes/tasks; validate both source-tree and installed-package behavior where packaging is affected.
 
 ### 7. Final Verification Results
 For each applicable check report `Passed / Failed / Partial / Not run / N/A`, evidence, and limitations. Organize results by **Common**, **Ecosystem-specific**, and **Artifact/runtime** checks so irrelevant native/managed checks do not obscure coverage.
@@ -217,5 +238,6 @@ Verify ecosystem-specific checks where applicable:
 - **Rust**: toolchain/MSRV/edition, workspace/targets, meaningful feature matrix, `cargo check/test`, Clippy/format checks when available, unsafe/FFI contracts, panic/unwind, Send/Sync/concurrency, async cancellation, build.rs/proc-macro/native dependencies, and Miri/sanitizer/fuzzer checks when applicable and available.
 - **C#/.NET**: TFMs/RIDs, Release build/tests, compiler/Roslyn analyzers, nullable/resource/async/cancellation/concurrency/interop checks, representative publish modes, trimming/single-file/ReadyToRun/AOT warnings and runtime equivalence when supported, and published-artifact smoke tests.
 - **Go**: module/build-tag/GOOS-GOARCH matrix, `go test`, `go vet`, race-detector coverage for concurrent paths, fuzzing for exposed parsers where feasible, resource/goroutine/context/channel/error/panic behavior, module verification/advisories, and CGO boundaries when present.
+- **Python**: supported Python/interpreter matrix, clean environment/setup, repository-declared tests, lint/type checks when configured, import/package behavior, exception/resource/subprocess handling, async/task/cancellation and thread/process behavior, common semantic hazards, dependency/advisory checks, packaging metadata, clean wheel/sdist build when applicable, installed-artifact smoke tests, and native-extension/FFI boundaries when present.
 
 Verify artifact/runtime checks where applicable: release artifact existence and provenance within the audited build; architecture/target/runtime compatibility; symbols/dependencies/loader paths; embedded paths/secrets; native hardening only where applicable; managed runtime/publish metadata; feature/build-tag/configuration equivalence; ABI/FFI/interop boundaries; debug-release or JIT/AOT differences; artifact size/bloat; startup/smoke behavior; and that flags/settings claimed to provide safety or hardening are effective in the produced artifact/runtime rather than merely configured.
