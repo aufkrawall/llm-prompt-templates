@@ -57,6 +57,13 @@ For GraalVM Native Image, JNI/JNA, Panama/FFM, embedded native libraries, or oth
 
 Prefer repository-declared wrapper commands such as `./gradlew` or `mvnw` when present. Do not silently replace the project's build system, JDK, formatter, analyzer set, dependency policy, or framework conventions merely to satisfy the audit.
 
+## Implementation rules additions
+
+When the main audit produces a later implementation plan, apply these ecosystem-specific rules in addition to its common implementation rules:
+
+- **JavaScript/TypeScript:** preserve supported runtime and browser targets, module-system semantics, package entry points/`exports`, public TypeScript and runtime contracts, lockfile/package-manager expectations, server/client boundaries, async/cancellation/backpressure behavior, and bundled/published artifact compatibility. Fix the runtime validation or ownership boundary rather than hiding type/lint errors with broad assertions or suppressions; clean up owned listeners, timers, streams, processes, workers, requests, and tasks; and validate affected behavior in the actual built/packed runtime mode.
+- **Java/Kotlin/JVM:** preserve supported JDK/bytecode targets, public API/ABI and Java/Kotlin nullability contracts, serialization/configuration formats, dependency/build-wrapper expectations, interruption/cancellation semantics, and packaged-artifact compatibility. Close owned resources and executors, preserve causal exceptions and interruption, avoid leaking ThreadLocal/classloader/static state, and validate affected behavior from the packaged JAR/WAR/image and relevant native boundary when packaging or runtime loading changes.
+
 ## Score calculation integrity
 
 When the main audit requires weighted score arithmetic and a calculator, shell, scripting runtime, spreadsheet, or equivalent deterministic arithmetic tool is available, compute the score mechanically rather than estimating it mentally. Preserve the category scores, applicable positive weights, excluded/N/A categories, renormalization basis, unrounded result, and final rounding rule so another reviewer can reproduce the total.
