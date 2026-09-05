@@ -149,13 +149,14 @@ Add the general audit template from this repo.
 Install the code-quality audit prompt.
 ```
 
-Use:
+Use the complete general-audit pair:
 
 ```text
 audit-template/audit-template-v3-polyglot.md
+audit-template/audit-language-profiles-addendum.md
 ```
 
-Preserve the template's substantive audit coverage. Adapt only target/output integration details when needed.
+Preserve both files and their relationship. The addendum supplies first-class JavaScript/TypeScript and Java/Kotlin/JVM coverage plus deterministic score-calculation guidance. Preserve the main template's substantive audit coverage and adapt only target/output integration details when needed.
 
 ### Security audit bundle
 
@@ -177,7 +178,7 @@ Add all templates from this repo.
 Import the whole prompt-template repository.
 ```
 
-May copy all reusable template families, but keep them logically separated and preserve their internal relationships. Do not run tool installers merely because their scripts were copied.
+May copy all reusable template families, but keep them logically separated and preserve their internal companion/addendum relationships. Do not run tool installers merely because their scripts were copied.
 
 ## Conflict precedence
 
