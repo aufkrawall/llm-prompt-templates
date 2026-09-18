@@ -368,7 +368,7 @@ function Invoke-InstallerWizard {
   ) -DefaultIndex 0
 
   switch ($mode) {
-    0 { Set-FullInstallSelection; Read-WizardValidationOptions }
+    0 { Set-FullInstallSelection }
     1 { Set-FullInstallSelection; Read-WizardCommonPaths; Read-WizardValidationOptions }
     2 { Read-WizardCommonPaths; Read-WizardCustomInstallOptions; Read-WizardValidationOptions }
     3 {
@@ -424,11 +424,6 @@ if ($Full -and $Minimal) {
 }
 
 if ($Full) {
-  $SkipSysinternals = $false
-  $SkipVSWhere = $false
-  $SkipSastInstall = $false
-  $SkipSecretsInstall = $false
-  $SkipDependencyScannerInstall = $false
   $IncludeGuiSysinternals = $true
   $IncludeWinDbg = $true
   $IncludeWindowsSdkDebuggers = $true
