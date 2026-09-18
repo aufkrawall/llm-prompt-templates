@@ -73,7 +73,7 @@ The main template defaults to audit-only behavior and writes one audit report un
 
 ### Security audit
 
-For full intended coverage, copy the entire `security-audit-template/` bundle into or alongside the target repository rather than copying only the main prompt.
+For full intended coverage, copy the entire `security-audit-template/` bundle plus `common-tools/discover-debug-tools.ps1` and the generic entries from `common-tools/tool-paths.example.env`; the Windows security installer delegates generic debugger/developer path discovery to that shared helper.
 
 The main template can use:
 
