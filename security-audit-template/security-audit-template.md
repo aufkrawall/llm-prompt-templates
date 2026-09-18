@@ -583,7 +583,8 @@ For later fixes:
 - do not substitute feature disablement, broad suppression, or avoidable performance/availability regressions for a real fix
 - keep refactors tied to a selected finding or material security-risk reduction
 - preserve useful diagnostics and generated-binary hardening; keep suppressions narrow and justified
-- validate each fix with the original reproducer or abuse case and focused automated regression tests when practical
+- treat regression coverage and diagnosability as first-class fix requirements: validate each non-trivial fix with the original reproducer/abuse case and a focused automated regression test when practical; if omitted, state why
+- add or preserve high-signal diagnostics when recurrence would otherwise be materially hard to diagnose, without leaking secrets or sensitive data
 - measure performance-sensitive fixes when they affect hot paths, startup/shutdown, networking/parsing/storage/concurrency, resource use, binary size, or energy use
 - if temporary feature disablement is used as an emergency mitigation, document its scope, rollback plan, owner, follow-up fix, and user-visible impact
 - recheck affected unsafe/native/FFI, parser, concurrency, privilege, auth, tenancy, dynamic-loading, and other high-blast-radius boundaries
