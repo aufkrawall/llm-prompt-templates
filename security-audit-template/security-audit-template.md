@@ -90,11 +90,11 @@ Before generic tool assumptions, inspect relevant repository-local audit guidanc
 
 Treat these files as guidance and path evidence, not proof that a tool or artifact is usable. Resolve tools from generated manifests first, then local overrides, shell/PATH discovery, documented paths, and safe fallbacks. Never guess paths.
 
-Verify relevant tools and inputs before relying on them. Missing tools, targets, binaries, dumps, symbols, logs, or other evidence are coverage limitations, not vulnerabilities by themselves; lower only the affected confidence/readiness or scores. Warn only when the missing evidence materially affects the audit.
+Verify relevant tools and inputs before relying on them. If a documented path variable is unset, try documented relative discovery before warning. Missing tools, targets, binaries, dumps, symbols, logs, or other evidence are coverage limitations, not vulnerabilities by themselves; use a safe fallback when available, otherwise mark the evidence unavailable and lower only affected confidence/readiness or scores. Do not silently skip relevant project-documented tools or inputs. Surface material gaps in the Executive Summary, affected scorecard/finding notes, Production-Readiness Assessment, and Final Verification Checklist.
 
 Do not mutate global debugger/runtime/system state, install large or global tooling, upload source or sensitive artifacts, or run intrusive diagnostics unless explicitly authorized. Repository installers/detectors are optional; if used, verify their resulting manifests rather than assuming installation succeeded.
 
-Apply project-specific diagnostics only to matching subsystems. Missing DX12/DRED, GPU, media/capture, hook/overlay, or similar project-specific tooling must not affect unrelated projects. For supported Linux/macOS targets, do not claim Windows-equivalent tooling coverage unless comparable evidence exists.
+Apply project-specific diagnostics only to matching subsystems. Missing DX12/DRED, GPU, media/capture, hook/overlay, or similar project-specific tooling must not affect unrelated projects; mark them N/A when inapplicable. Treat diagnostic logs/dumps/captures as sensitive, and do not treat diagnosis-only modes that alter timing or behavior as production security controls. For supported Linux/macOS targets, do not claim Windows-equivalent tooling coverage unless comparable evidence exists.
 
 Strict prerequisite/coverage mode is opt-in. When explicitly requested, block deeper analysis only for missing tools or evidence that are actually required for the requested scope.
 
@@ -573,7 +573,7 @@ Do not assess out-of-scope deployment, signing, packaging, infrastructure, distr
 
 # 5. Implementation Plan
 
-Group selected findings into the fewest practical phases, ordered by severity and dependency. For each phase include finding IDs, tasks, affected files/modules/artifacts, dependencies, validation, non-regression checks, release requirement, and order. Do not emit empty canned phases.
+Group selected findings into the fewest applicable phases, ordered by severity and dependency. Preserve this phase taxonomy when relevant: **0 Safety/Baseline; 1 Release Blockers; 2 Authentication/Authorization/Business Logic/Data Protection; 3 Injection/Parser/Filesystem/Network; 4 Cryptography/Secrets/Dependencies; 5 Compiler/Runtime/Binary/Native-FFI; 6 Runtime Abuse Resistance; 7 Security Regression Hardening; 8 High-Assurance Components; 9 Architecture/Maintainability; 10 Final Validation**. Omit empty phases. For each included phase state finding IDs, tasks, affected files/modules/artifacts, dependencies, validation, non-regression checks, release requirement, and order.
 
 # 6. Implementation Rules
 
