@@ -405,8 +405,8 @@ function Invoke-InstallerWizard {
       $script:Minimal = $false
       $script:Uninstall = $true
       Read-WizardCommonPaths
-      $script:RemoveSharedPackages = Read-WizardYesNo -Prompt "RemoveSharedPackages" -Default $true
-      $script:RemovePythonPackages = Read-WizardYesNo -Prompt "RemovePythonPackages" -Default $true
+      $script:RemoveSharedPackages = Read-WizardYesNo -Prompt "RemoveSharedPackages" -Default $false
+      $script:RemovePythonPackages = Read-WizardYesNo -Prompt "RemovePythonPackages" -Default $false
       $script:WhatIfOnly = Read-WizardYesNo -Prompt "WhatIfOnly (dry run)" -Default $false
     }
     default { Write-Host "Cancelled."; exit 0 }
