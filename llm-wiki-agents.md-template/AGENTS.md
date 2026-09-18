@@ -28,10 +28,13 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 
 ## Tests and diagnostics
 
-- For bug fixes and behavioral changes, explicitly assess regression coverage and diagnostics even when existing tests pass; add or improve focused coverage when practical, preferably tests that fail before the fix and pass after it.
+Regression coverage and diagnosability are first-class deliverables, not optional polish.
+
+- For every bug fix or behavioral correction, explicitly assess both regression coverage and diagnostics even when existing tests pass. Strongly prefer a focused automated regression test that fails before the fix and passes after it.
 - For features, cover the new contract and important edge cases when suitable test infrastructure exists.
-- Do not add low-value tests merely to satisfy a blanket rule. If useful automation is impractical, preserve a reproducible manual verification method and state the limitation.
-- Improve diagnostics only when they materially aid recurrence diagnosis. Keep them high-signal, non-secret, low-overhead, and preserve useful debug information when compatible with release policy.
+- Do not add low-value tests merely to satisfy a blanket rule. If focused automation is genuinely impractical or adds little value, preserve a reproducible verification method and state why automated coverage was omitted.
+- Add or improve high-signal debug/diagnostic logging when a recurrence would otherwise be materially harder to diagnose, especially around relevant state transitions, inputs, boundaries, recovery paths, and failures. Keep diagnostics non-secret and low-overhead, and preserve useful debug information when compatible with release policy.
+- If additional regression coverage or diagnostics are deliberately not added for a non-trivial behavioral change, state the reason.
 - Do not introduce sleeps or timing assumptions into tests unless timing is the behavior under test and the test remains deterministic.
 
 ## Project-specific constraints
