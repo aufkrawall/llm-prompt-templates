@@ -138,4 +138,13 @@ if (-not $content.Contains('Set-MinimalInstallSelection')) {
   throw "Minimal wizard mode must reset incoming include flags."
 }
 
+foreach ($safeUninstallDefault in @(
+  'Read-WizardYesNo -Prompt "RemoveSharedPackages" -Default $false',
+  'Read-WizardYesNo -Prompt "RemovePythonPackages" -Default $false'
+)) {
+  if (-not $content.Contains($safeUninstallDefault)) {
+    throw "Wizard uninstall must keep shared/Python package removal opt-in: $safeUninstallDefault"
+  }
+}
+
 Write-Host "Security installer wizard/full-install regression checks passed."
