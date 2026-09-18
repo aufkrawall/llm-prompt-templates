@@ -427,12 +427,14 @@ foreach ($tool in @("dumpbin.exe", "link.exe", "lib.exe", "editbin.exe", "undnam
   Resolve-MsvcTool -ToolName $tool
 }
 
-$llvmRoots = @(
-  (Get-OverrideValue -Name "LLVM_ROOT"),
-  (if ([Environment]::GetEnvironmentVariable("ProgramFiles", "Process")) { Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles", "Process")) "LLVM\bin" }),
-  (if ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")) { Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")) "LLVM\bin" }),
-  (if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Programs\LLVM\bin" })
-) | Where-Object { $_ }
+$llvmRoots = New-Object System.Collections.Generic.List[string]
+$llvmOverride = Get-OverrideValue -Name "LLVM_ROOT"
+if ($llvmOverride) { $llvmRoots.Add($llvmOverride) | Out-Null }
+$programFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
+if ($programFiles) { $llvmRoots.Add((Join-Path $programFiles "LLVM\bin")) | Out-Null }
+$programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")
+if ($programFilesX86) { $llvmRoots.Add((Join-Path $programFilesX86 "LLVM\bin")) | Out-Null }
+if ($env:LOCALAPPDATA) { $llvmRoots.Add((Join-Path $env:LOCALAPPDATA "Programs\LLVM\bin")) | Out-Null }
 foreach ($tool in @("llvm-objdump.exe", "llvm-strings.exe")) {
   Resolve-GenericTool -ToolName $tool -Category "LLVM tools" -OverrideKeys @("LLVM_ROOT") -KnownRoots $llvmRoots
 }
@@ -447,11 +449,14 @@ foreach ($tool in @("ffmpeg.exe", "ffprobe.exe")) {
 
 Resolve-GenericTool -ToolName "vswhere.exe" -Category "Visual Studio discovery"
 
+$resolvedToolPathsEnv = $null
+if ($ToolPathsEnv) { $resolvedToolPathsEnv = Resolve-ConfiguredPath -Value $ToolPathsEnv }
+
 $manifest = [pscustomobject]@{
   generated_at = (Get-Date).ToString("o")
   project_root = $ProjectRoot
   output_root = $OutputRoot
-  tool_paths_env = if ($ToolPathsEnv) { Resolve-ConfiguredPath -Value $ToolPathsEnv } else { $null }
+  tool_paths_env = $resolvedToolPathsEnv
   host = [pscustomobject]@{
     computer_name = $env:COMPUTERNAME
     user = $env:USERNAME
