@@ -35,6 +35,7 @@ foreach ($functionName in @(
   "Get-WindowsSdkDebuggerArchitectures",
   "Get-WindowsSdkDebuggerCandidatePaths",
   "Get-MsvcBinaryToolArchitecturePreferences",
+  "Get-MsvcOverrideKeys",
   "Select-PreferredMsvcToolMatch"
 )) {
   $functionAst = $ast.Find(
@@ -90,6 +91,10 @@ try {
   )
   Assert-SequenceEqual -Label "AMD64 standard debugger path preference" -Actual $architectures -Expected @(
     "x64", "x64", "x86", "x86", "arm64", "arm64", "arm", "arm"
+  )
+
+  Assert-SequenceEqual -Label "AMD64 MSVC override preference" -Actual @(Get-MsvcOverrideKeys) -Expected @(
+    "MSVC_TOOLS_X64", "MSVC_TOOLS_X86", "MSVC_TOOLS_ARM64"
   )
 
   $msvcMatches = @(
