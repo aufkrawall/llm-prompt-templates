@@ -52,6 +52,7 @@ foreach ($functionName in @(
 $originalProgramFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
 $originalProgramFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")
 $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE", "Process")
+$overrideFile = $null
 
 try {
   $script:Warnings = New-Object System.Collections.Generic.List[string]
