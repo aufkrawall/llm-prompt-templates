@@ -533,10 +533,10 @@ If GUI/UI, domain safety, or high-assurance component safety is central, assign 
 Weighted total = `sum(score × applicable positive weight) / sum(applicable positive weights)`. Show brief arithmetic.
 
 Verdict guidance:
-- **Ready to ship:** no Critical/High release blockers and release-critical security paths are sufficiently verified.
-- **Ready to ship with minor fixes:** no Critical blocker; remaining issues are bounded and not release-blocking.
-- **Not ready to ship:** unresolved release-blocking risk or insufficient confidence in a release-critical area.
-- **Blocked:** essential prerequisites/evidence are unavailable or a Critical condition prevents meaningful release assessment.
+- **Ready to ship:** no Critical or High blockers; source/build/test/artifact paths and release-critical security behavior are sufficiently verified.
+- **Ready to ship with minor fixes:** no Critical blocker; any High issue is narrow, understood, and not release-blocking.
+- **Not ready to ship:** an unresolved High blocker, multiple meaningful Medium issues, or insufficient confidence in a release-critical security area.
+- **Blocked:** a Critical blocker or missing essential source/evidence/prerequisites prevents a meaningful release assessment.
 
 # 3. Findings and Recommendations
 
