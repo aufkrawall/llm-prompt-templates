@@ -23,6 +23,8 @@ The output root can be overridden with `-OutputRoot`. The security-audit install
 
 The first file owns generic debugger/developer paths. The second owns security-audit installation/scanner evidence.
 
+The generic manifest also includes a `windows_sdk_debugger_architectures` matrix so architecture-specific SDK copies are visible independently instead of being hidden behind only the host-preferred result.
+
 ## Where paths come from
 
 For Windows SDK Debugging Tools such as `cdb.exe`, `windbg.exe`, `dumpchk.exe`, `symchk.exe`, `dbh.exe`, `pdbcopy.exe`, `symstore.exe`, `gflags.exe`, and `umdh.exe`, discovery checks:
@@ -53,9 +55,11 @@ C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe
 C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\cdb.exe
 ```
 
+The normal `results` array remains backward-compatible and records the preferred available copy for each SDK tool. The architecture matrix separately reports x64, x86, ARM64, and ARM availability for every tracked SDK debugger utility.
+
 MSVC tools use `MSVC_TOOLS_X86`, `MSVC_TOOLS_X64`, and `MSVC_TOOLS_ARM64` overrides first, then additional local roots, Visual Studio/vswhere discovery, and finally PATH. Host/target variants are preferred according to the current processor architecture.
 
-LLVM, Sysinternals, and FFmpeg can be rooted with `LLVM_ROOT`, `SYSINTERNALS_ROOT`, and `FFMPEG_ROOT`. Additional managed roots supplied by a caller are searched before ordinary PATH fallback.
+LLVM, Sysinternals, and FFmpeg can be rooted with `LLVM_ROOT`, `SYSINTERNALS_ROOT`, and `FFMPEG_ROOT`. Additional managed roots supplied by a caller are searched before ordinary PATH fallback. When `%LOCALAPPDATA%\SecurityAuditTools\bin` exists, standalone discovery also adds it automatically, so tools installed by the security-audit installer (for example its managed FFmpeg build) remain discoverable without manually passing `-AdditionalToolRoots`.
 
 ## Local overrides
 
