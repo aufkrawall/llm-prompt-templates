@@ -1444,8 +1444,15 @@ function Invoke-DebugToolDiscovery {
     if ($WhatIfOnly) { $manifestStatus = "planned" }
     Add-Result -Name "debug-tool-manifest.json" -Category "generic tooling" -Status $manifestStatus -Path $DebugToolManifestPath -Source $discoveryScript
   } catch {
-    Add-WarningMessage "Generic debug-tool discovery failed: $($_.Exception.Message)"
-    Add-Result -Name "debug-tool discovery" -Category "generic tooling" -Status "failed" -Path $discoveryScript -Notes $_.Exception.Message
+    $failureDetails = $_.Exception.Message
+    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+      $failureDetails += [Environment]::NewLine + $_.InvocationInfo.PositionMessage
+    }
+    if ($_.ScriptStackTrace) {
+      $failureDetails += [Environment]::NewLine + $_.ScriptStackTrace
+    }
+    Add-WarningMessage "Generic debug-tool discovery failed: $failureDetails"
+    Add-Result -Name "debug-tool discovery" -Category "generic tooling" -Status "failed" -Path $discoveryScript -Notes $failureDetails
   }
 }
 
