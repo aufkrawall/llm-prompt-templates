@@ -110,7 +110,7 @@ function Read-ToolPathOverrides {
 
     $parts = $trimmed -split "=", 2
     if ($parts.Count -ne 2) {
-      Add-WarningMessage "Ignoring malformed tool-path override line in ${resolved}: $trimmed"
+      Add-WarningMessage ("Ignoring malformed tool-path override line in {0}: {1}" -f $resolved, $trimmed)
       continue
     }
 
