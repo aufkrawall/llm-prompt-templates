@@ -29,7 +29,7 @@ $ast = [System.Management.Automation.Language.Parser]::ParseFile(
   [ref]$parseErrors
 )
 
-if ($parseErrors.Count -gt 0) {
+if ($parseErrors -and $parseErrors.Count -gt 0) {
   $messages = $parseErrors | ForEach-Object { $_.Message }
   throw "Installer parse failed: $($messages -join '; ')"
 }
