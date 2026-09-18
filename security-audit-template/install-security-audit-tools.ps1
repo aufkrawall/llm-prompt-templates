@@ -1,13 +1,14 @@
 <# 
 .SYNOPSIS
-  Installs or detects Windows security-audit/debugging tools referenced by debug-tools-security-audit.md.
+  Installs Windows security-audit tooling and delegates generic debug/developer tool discovery to discover-debug-tools.ps1.
 
 .DESCRIPTION
   Conservative by default:
   - Downloads small portable tools from official/safe sources where practical.
   - Verifies Authenticode signatures for Microsoft/Sysinternals downloads.
   - Does NOT install large packages such as Visual Studio Build Tools, Windows SDK, or LLVM by default.
-  - Detects large/existing toolchains and prints warnings when tools are unavailable.
+  - Reuses the generic discover-debug-tools.ps1 helper for debugger, Windows SDK, MSVC, LLVM, Sysinternals, FFmpeg, and related path discovery.
+  - Detects security-audit scanners and prints warnings when applicable security coverage is unavailable.
   - Installs portable, low-side-effect scanners by default. Python/pip-based scanners are opt-in because they can mutate user Python environments and PATH assumptions.
   - Generates a manifest and warnings file for audit-report evidence.
 
@@ -21,6 +22,12 @@
   Path to debug-tools-security-audit.md or debug-tools.md. Used for evidence/logging.
   The script does not execute arbitrary commands from this file.
 
+.PARAMETER DebugToolDiscoveryScriptPath
+  Optional explicit path to the generic discover-debug-tools.ps1 helper.
+  When omitted, common repository/installed locations are searched.
+
+.PARAMETER ToolPathsEnv
+  Optional local tool-path override file passed to generic debug-tool discovery.
 
 .PARAMETER ProjectRoot
   Repository root used to decide which SAST/secrets/dependency tools are applicable.
@@ -145,6 +152,8 @@
 param(
   [string]$InstallRoot = "$env:LOCALAPPDATA\SecurityAuditTools",
   [string]$DebugToolsMdPath = ".\llm-wiki\debug-tools-security-audit.md",
+  [string]$DebugToolDiscoveryScriptPath = "",
+  [string]$ToolPathsEnv = ".\tool-paths.env",
   [switch]$SkipSysinternals,
   [switch]$IncludeGuiSysinternals,
   [switch]$IncludeWinDbg,
@@ -197,6 +206,7 @@ $LogDir = Join-Path $InstallRoot "logs"
 $ManifestPath = Join-Path $InstallRoot "security-audit-tool-manifest.json"
 $WarningsPath = Join-Path $InstallRoot "security-audit-tool-warnings.txt"
 $MarkdownPath = Join-Path $InstallRoot "security-audit-tool-availability.md"
+$DebugToolManifestPath = Join-Path $InstallRoot "debug-tool-manifest.json"
 
 $script:Results = New-Object System.Collections.Generic.List[object]
 $script:Warnings = New-Object System.Collections.Generic.List[string]
@@ -641,12 +651,27 @@ function Test-RequiredToolGate {
   if ($RequireTools.Count -eq 0) { return }
 
   foreach ($tool in $RequireTools) {
+    $toolNames = @($tool)
+    if ($tool -notmatch "\.exe$") { $toolNames += "$tool.exe" }
+
+    $existing = $script:Results |
+      Where-Object {
+        $toolNames -contains $_.name -and
+        $_.status -match "^available"
+      } |
+      Select-Object -First 1
+
+    if ($existing) {
+      Add-Result -Name $tool -Category "required tool gate" -Status "available" -Path $existing.path -Source "existing discovery result"
+      continue
+    }
+
     $resolved = Test-LocalToolPath $tool
     if ($resolved) {
       Add-Result -Name $tool -Category "required tool gate" -Status "available" -Path $resolved
     } else {
       $script:RequiredToolMissing = $true
-      Add-WarningMessage "Required tool '$tool' was not found by manifest/local/PATH-style discovery. Strict gate will fail if -StrictRequiredTools is set."
+      Add-WarningMessage "Required tool '$tool' was not found by generic manifest/local/PATH-style discovery. Strict gate will fail if -StrictRequiredTools is set."
       Add-Result -Name $tool -Category "required tool gate" -Status "missing"
     }
   }
@@ -963,135 +988,74 @@ function Install-WithWinget {
   Add-Result -Name $Name -Category "winget" -Status "install-failed" -Source "winget:$PackageId" -Notes "ExitCode=$exit; $Reason"
 }
 
-function Get-WindowsSdkDebuggerArchitectures {
-  $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
-  switch ($hostArchitecture.ToUpperInvariant()) {
-    "ARM64" { return @("arm64", "x64", "x86", "arm") }
-    "AMD64" { return @("x64", "x86", "arm64", "arm") }
-    default { return @("x86", "x64", "arm", "arm64") }
-  }
-}
+function Resolve-DebugToolDiscoveryScript {
+  $candidates = New-Object System.Collections.Generic.List[string]
 
-function Get-WindowsSdkDebuggerCandidatePaths {
-  param([string]$ToolName)
-
-  $baseRoots = @(
-    ${env:ProgramFiles(x86)},
-    ${env:ProgramFiles}
-  ) | Where-Object { $_ } | Select-Object -Unique
-
-  $debuggerRoots = foreach ($baseRoot in $baseRoots) {
-    Join-Path (Join-Path (Join-Path $baseRoot "Windows Kits") "10") "Debuggers"
+  if ($DebugToolDiscoveryScriptPath) {
+    $candidates.Add($DebugToolDiscoveryScriptPath) | Out-Null
   }
 
-  $paths = foreach ($architecture in @(Get-WindowsSdkDebuggerArchitectures)) {
-    foreach ($debuggerRoot in $debuggerRoots) {
-      Join-Path (Join-Path $debuggerRoot $architecture) $ToolName
-    }
-  }
+  $candidates.Add((Join-Path $PSScriptRoot "..\common-tools\discover-debug-tools.ps1")) | Out-Null
+  $candidates.Add((Join-Path $PSScriptRoot "tools\discover-debug-tools.ps1")) | Out-Null
+  $candidates.Add((Join-Path $PSScriptRoot "discover-debug-tools.ps1")) | Out-Null
+  $candidates.Add((Join-Path $ProjectRoot "tools\discover-debug-tools.ps1")) | Out-Null
 
-  return @($paths | Select-Object -Unique)
-}
-
-function Get-MsvcBinaryToolArchitecturePreferences {
-  $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
-  switch ($hostArchitecture.ToUpperInvariant()) {
-    "ARM64" {
-      return @(
-        "Hostarm64\arm64",
-        "Hostarm64\x64",
-        "Hostarm64\x86",
-        "Hostx64\x64",
-        "Hostx64\x86",
-        "Hostx86\x86"
-      )
-    }
-    "AMD64" {
-      return @(
-        "Hostx64\x64",
-        "Hostx64\x86",
-        "Hostx86\x86",
-        "Hostx86\x64",
-        "Hostarm64\arm64"
-      )
-    }
-    default {
-      return @(
-        "Hostx86\x86",
-        "Hostx86\x64",
-        "Hostx64\x64",
-        "Hostx64\x86",
-        "Hostarm64\arm64"
-      )
-    }
-  }
-}
-
-function Select-PreferredMsvcToolMatch {
-  param([object[]]$Candidates)
-
-  if (-not $Candidates -or $Candidates.Count -eq 0) { return $null }
-
-  foreach ($preference in @(Get-MsvcBinaryToolArchitecturePreferences)) {
-    $candidate = $Candidates |
-      Where-Object {
-        $normalized = $_.FullName.Replace("/", "\")
-        $normalized -like "*\bin\$preference\*"
-      } |
-      Sort-Object FullName -Descending |
-      Select-Object -First 1
-    if ($candidate) { return $candidate }
-  }
-
-  return $Candidates | Sort-Object FullName -Descending | Select-Object -First 1
-}
-
-function Find-VSTools {
-  param([string]$VSWherePath)
-
-  $vsInstall = $null
-  if ($VSWherePath -and (Test-Path -LiteralPath $VSWherePath)) {
+  foreach ($candidate in @($candidates | Select-Object -Unique)) {
+    if (-not $candidate) { continue }
     try {
-      $vsInstall = & $VSWherePath -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+      $resolved = [IO.Path]::GetFullPath($candidate)
+      if (Test-Path -LiteralPath $resolved) { return $resolved }
     } catch {
-      Add-WarningMessage "vswhere failed while locating MSVC tools: $($_.Exception.Message)"
+      continue
     }
   }
 
-  $roots = @()
-  if ($vsInstall) { $roots += $vsInstall }
-  $roots += @(
-    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community",
-    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional",
-    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise",
-    "${env:ProgramFiles}\Microsoft Visual Studio\2022\BuildTools"
-  )
+  return $null
+}
 
-  $toolNames = @("dumpbin.exe", "link.exe", "lib.exe", "editbin.exe", "undname.exe")
-  foreach ($tool in $toolNames) {
-    $found = $null
-    foreach ($root in $roots | Select-Object -Unique) {
-      if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
-      $toolCandidates = @(
-        Get-ChildItem -LiteralPath $root -Recurse -Filter $tool -ErrorAction SilentlyContinue |
-          Where-Object {
-            $normalized = $_.FullName.Replace("/", "\")
-            $normalized -match "\\VC\\Tools\\MSVC\\.*\\bin\\Host(?:x64|x86|arm64)\\(?:x64|x86|arm64)\\"
-          }
-      )
-      $match = Select-PreferredMsvcToolMatch -Candidates $toolCandidates
-      if ($match) {
-        $found = $match.FullName
-        break
-      }
+function Invoke-DebugToolDiscovery {
+  $discoveryScript = Resolve-DebugToolDiscoveryScript
+  if (-not $discoveryScript) {
+    Add-WarningMessage "Generic debug-tool discovery helper was not found. Expected common-tools/discover-debug-tools.ps1 in the source bundle or tools/discover-debug-tools.ps1 in an integrated project."
+    Add-Result -Name "debug-tool discovery" -Category "generic tooling" -Status "missing-helper"
+    return
+  }
+
+  Write-Host "Running generic debug-tool discovery: $discoveryScript"
+  $arguments = @{
+    ProjectRoot = $ProjectRoot
+    OutputRoot = $InstallRoot
+    ToolPathsEnv = $ToolPathsEnv
+    AdditionalToolRoots = @($BinRoot)
+  }
+  if ($WhatIfOnly) { $arguments.NoWrite = $true }
+
+  try {
+    $debugManifest = & $discoveryScript @arguments
+    if (-not $debugManifest) {
+      Add-WarningMessage "Generic debug-tool discovery returned no manifest object."
+      return
     }
 
-    if ($found) {
-      Add-Result -Name $tool -Category "MSVC binary tools" -Status "available" -Path $found
-    } else {
-      Add-WarningMessage "$tool was not found. MSVC PE/COFF inspection or mutation-capable tooling may be unavailable. Visual Studio Build Tools are intentionally not installed by this script."
-      Add-Result -Name $tool -Category "MSVC binary tools" -Status "missing" -Notes "Large dependency intentionally not installed"
+    foreach ($result in @($debugManifest.results)) {
+      $existing = $script:Results |
+        Where-Object { $_.name -eq $result.name } |
+        Select-Object -First 1
+      if ($existing) { continue }
+
+      Add-Result -Name ([string]$result.name) -Category ("generic debug: " + [string]$result.category) -Status ([string]$result.status) -Path ([string]$result.path) -Source ([string]$result.source) -Notes ([string]$result.notes)
     }
+
+    foreach ($warning in @($debugManifest.warnings)) {
+      if ($warning) { Add-WarningMessage ("Generic debug discovery: " + [string]$warning) }
+    }
+
+    $manifestStatus = "available"
+    if ($WhatIfOnly) { $manifestStatus = "planned" }
+    Add-Result -Name "debug-tool-manifest.json" -Category "generic tooling" -Status $manifestStatus -Path $DebugToolManifestPath -Source $discoveryScript
+  } catch {
+    Add-WarningMessage "Generic debug-tool discovery failed: $($_.Exception.Message)"
+    Add-Result -Name "debug-tool discovery" -Category "generic tooling" -Status "failed" -Path $discoveryScript -Notes $_.Exception.Message
   }
 }
 
@@ -1137,7 +1101,6 @@ if ($debugDocFound) {
 $ProjectSignals = Get-ProjectSignals -Root $ProjectRoot
 Install-OptionalSastTools
 Detect-SastSecretsDependencyTools -Signals $ProjectSignals
-Test-RequiredToolGate
 
 # Download small portable Sysinternals tools by default.
 if (-not $SkipSysinternals) {
@@ -1225,85 +1188,6 @@ if ($IncludeFFmpeg) {
   Add-WarningMessage "FFmpeg/ffprobe were not installed by default. Use -IncludeFFmpeg only when capture/media inspection is needed."
 }
 
-# Detect Windows SDK Debugging Tools across installed architecture variants.
-$sdkDebuggerToolNames = @(
-  "cdb.exe",
-  "windbg.exe",
-  "dumpchk.exe",
-  "symchk.exe",
-  "dbh.exe",
-  "pdbcopy.exe",
-  "symstore.exe",
-  "gflags.exe",
-  "umdh.exe"
-)
-
-foreach ($name in $sdkDebuggerToolNames) {
-  $candidatePaths = Get-WindowsSdkDebuggerCandidatePaths -ToolName $name
-  Test-KnownPath -Name $name -Category "Windows SDK Debugging Tools" -Paths $candidatePaths -WarningIfMissing "$name was not found in the Windows SDK x64, x86, ARM, or ARM64 debugger directories or PATH. Windows SDK Debugging Tools are intentionally not installed by this script because they are large; dump/symbol/debug coverage may be reduced." | Out-Null
-}
-
-# Detect WinDbg Preview alias.
-$windbgX = Test-KnownPath -Name "WinDbgX.exe" -Category "WinDbg Preview" -Paths @(
-  "%LOCALAPPDATA%\Microsoft\WindowsApps\WinDbgX.exe"
-)
-if (-not $windbgX) {
-  if (Test-WingetPackageInstalled -PackageId "Microsoft.WinDbg") {
-    Add-Result -Name "WinDbgX.exe" -Category "WinDbg Preview" -Status "package-installed-alias-not-resolved" -Source "winget:Microsoft.WinDbg" -Notes "Package appears installed, but alias was not found in current session"
-  } else {
-    Add-WarningMessage "WinDbgX.exe was not found. Use -IncludeWinDbg to install WinDbg Preview through winget."
-    Add-Result -Name "WinDbgX.exe" -Category "WinDbg Preview" -Status "missing"
-  }
-}
-
-# Detect Visual Studio PE/COFF tools.
-Find-VSTools -VSWherePath $vswherePath
-
-function Find-LlvmTool {
-  param([string]$ToolName)
-
-  $pathFound = Test-LocalToolPath $ToolName
-  if ($pathFound) { return $pathFound }
-
-  foreach ($root in @(
-    "${env:ProgramFiles}\LLVM\bin",
-    "${env:ProgramFiles(x86)}\LLVM\bin",
-    "${env:LOCALAPPDATA}\Programs\LLVM\bin"
-  )) {
-    if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
-    $candidate = Join-Path $root $ToolName
-    if (Test-Path -LiteralPath $candidate) { return $candidate }
-  }
-
-  return $null
-}
-
-# Detect LLVM tools.
-foreach ($tool in @("llvm-strings.exe", "llvm-objdump.exe")) {
-  $pathFound = Find-LlvmTool -ToolName $tool
-  if ($pathFound) {
-    Add-Result -Name $tool -Category "LLVM tools" -Status "available" -Path $pathFound -Notes "Resolved from PATH, local roots, or known LLVM install directories"
-  } else {
-    Add-Result -Name $tool -Category "LLVM tools" -Status "missing" -Notes "Use -IncludeLLVMViaWinget if needed; a new shell may be needed after winget PATH changes"
-    Add-WarningMessage "$tool was not found in PATH or known LLVM install directories. LLVM-specific binary inspection coverage may be reduced."
-  }
-}
-
-# Detect FFmpeg if not installed here.
-foreach ($tool in @("ffmpeg.exe", "ffprobe.exe")) {
-  $pathFound = Test-CommandPath $tool
-  if ($pathFound) {
-    Add-Result -Name $tool -Category "media/capture" -Status "available-in-path" -Path $pathFound
-  } else {
-    $installed = Get-ChildItem -LiteralPath $FFmpegDir -Recurse -Filter $tool -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($installed) {
-      Add-Result -Name $tool -Category "media/capture" -Status "available" -Path $installed.FullName
-    } else {
-      Add-Result -Name $tool -Category "media/capture" -Status "missing" -Notes "Use -IncludeFFmpeg if needed"
-    }
-  }
-}
-
 # Add portable dirs to PATH if requested.
 if ($AddToUserPath) {
   Add-UserPathEntry $SysinternalsDir
@@ -1326,12 +1210,17 @@ if ($AddToUserPath) {
   }
 }
 
+# Refresh generic tool paths after optional installs, then apply required-tool gates.
+Invoke-DebugToolDiscovery
+Test-RequiredToolGate
+
 # Write outputs.
 $manifest = [pscustomobject]@{
   generated_at = (Get-Date).ToString("o")
   install_root = $InstallRoot
   project_root = $ProjectRoot
   debug_tools_doc = $debugDocFound
+  debug_tool_manifest = $DebugToolManifestPath
   strict_required_tools = [bool]$StrictRequiredTools
   required_tools = $RequireTools
   required_tool_missing = [bool]$script:RequiredToolMissing
