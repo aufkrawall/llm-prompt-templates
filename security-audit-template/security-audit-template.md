@@ -129,7 +129,7 @@ Tool path precedence:
 
 On Windows, `install-security-audit-tools.ps1` delegates generic debugger/MSVC/LLVM/Sysinternals/FFmpeg path discovery to `tools/discover-debug-tools.ps1`; do not duplicate that path-generation logic in security-specific guidance.
 
-If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional and should follow its conservative defaults. The audit must still verify the resulting tool availability instead of assuming installation succeeded.
+If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional. On Windows, a no-argument run now opens an interactive wizard whose default confirmed profile is a comprehensive Full install, including large toolchains; use custom/minimal profiles or explicit CLI switches when those side effects are not appropriate. The audit must still verify resulting tool availability instead of assuming installation succeeded.
 
 
 If `llm-wiki/debug-tools-security-audit.md` exists, use it as the preferred security-audit tool inventory. If it does not exist, fall back to `llm-wiki/debug-tools.md`. If both exist, use `debug-tools-security-audit.md` as the primary source and `debug-tools.md` as supplemental project-specific debugging guidance. Use these files to identify available or expected debugging, binary-inspection, crash-analysis, media/capture-analysis, runtime-diagnostics, and platform-specific tools that may be useful for the audit. Prefer tools listed there when they fit the audit task.

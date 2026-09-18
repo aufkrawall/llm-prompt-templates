@@ -3,14 +3,14 @@
   Installs Windows security-audit tooling and delegates generic debug/developer tool discovery to discover-debug-tools.ps1.
 
 .DESCRIPTION
-  Conservative by default:
-  - Downloads small portable tools from official/safe sources where practical.
-  - Verifies Authenticode signatures for Microsoft/Sysinternals downloads.
-  - Does NOT install large packages such as Visual Studio Build Tools, Windows SDK, or LLVM by default.
-  - Reuses the generic discover-debug-tools.ps1 helper for debugger, Windows SDK, MSVC, LLVM, Sysinternals, FFmpeg, and related path discovery.
-  - Detects security-audit scanners and prints warnings when applicable security coverage is unavailable.
-  - Installs portable, low-side-effect scanners by default. Python/pip-based scanners are opt-in because they can mutate user Python environments and PATH assumptions.
-  - Generates a manifest and warnings file for audit-report evidence.
+  Interactive and comprehensive by default:
+  - Starting the script without parameters opens a wizard.
+  - The wizard defaults to a full installation profile. After one final confirmation it attempts every supported install path, including large packages.
+  - Full mode includes Visual Studio Build Tools/MSVC, Windows SDK Debugging Tools, WinDbg, LLVM, FFmpeg, CodeQL, GUI Sysinternals, secrets/dependency scanners, and Python/pip-based audit tools.
+  - Downloads small portable tools from official/safe sources where practical and verifies Authenticode signatures for Microsoft/Sysinternals/bootstrapper downloads.
+  - Reuses the generic discover-debug-tools.ps1 helper for final debugger, Windows SDK, MSVC, LLVM, Sysinternals, FFmpeg, and related path discovery.
+  - Generates manifests/evidence and prints a consolidated completion summary of tools that were not installed, not found, unresolved, or failed.
+  - Explicit CLI parameters remain supported for automation and non-interactive use.
 
   Intended repo location:
     install-security-audit-tools.ps1
@@ -35,43 +35,45 @@
 
 
 .PARAMETER Full
-  Install as much supported tooling as practical. This enables default portable installs plus optional/heavier installs:
-  GUI Sysinternals, WinDbg, LLVM, FFmpeg, trufflehog, CodeQL, and Python/pip-based SAST tools.
+  Install as much supported tooling as practical. This enables portable scanners plus larger/heavier installs:
+  GUI Sysinternals, WinDbg, Windows SDK Debugging Tools, Visual Studio Build Tools/MSVC, LLVM, FFmpeg,
+  trufflehog, CodeQL, and Python/pip-based SAST/dependency tools.
 
 .PARAMETER Uninstall
   Remove script-managed portable tools and evidence under InstallRoot, then exit.
 
 .PARAMETER RemoveSharedPackages
-  With -Uninstall, also attempt to remove package-manager/shared installs the script can create, such as WinDbg and LLVM.
-  This is not enabled by default because those packages may have existed before this script was run.
+  With -Uninstall, also attempt to remove supported package-manager/shared installs such as WinDbg and LLVM.
+  Visual Studio Build Tools and Windows SDK components are deliberately not auto-removed because they may be shared by other developer workflows.
+  This is not enabled by default because shared packages may have existed before this script was run.
 
 .PARAMETER RemovePythonPackages
   With -Uninstall, also attempt to uninstall Python/pipx packages the script can install, such as semgrep, flawfinder, and pip-audit.
   This is not enabled by default because those packages may be used outside this audit tooling.
 
 .PARAMETER Minimal
-  Conservative mode. Do not install default portable scanners; detect only unless explicit Include* switches are provided.
+  Detection-focused mode. Do not perform the normal default portable scanner installs unless explicit Include* switches are provided.
 
 .PARAMETER SkipSastInstall
-  Skip default SAST installation attempts. Currently Python/pip-based SAST is not installed by default, so this mainly affects future portable SAST defaults.
+  Skip managed SAST installation attempts for this run, including Python/pip-based SAST selected by Full mode.
 
 .PARAMETER SkipSecretsInstall
-  Skip default gitleaks installation.
+  Skip managed secrets-scanner installation attempts for this run.
 
 .PARAMETER SkipDependencyScannerInstall
-  Skip default osv-scanner and pip-audit installation attempts.
+  Skip managed dependency-scanner installation attempts for this run.
 
 .PARAMETER IncludeSast
-  Explicitly install semgrep and flawfinder where possible. These use pipx or Python user installs and are opt-in.
+  Select semgrep and flawfinder installation where possible. Full mode selects this automatically.
 
 .PARAMETER IncludePythonSast
-  Alias-style group switch for Python/pip-based SAST/dependency tools: semgrep, flawfinder, and pip-audit.
+  Group switch for Python/pip-based SAST/dependency tools: semgrep, flawfinder, and pip-audit. Full mode selects this automatically.
 
 .PARAMETER IncludeSecrets
-  Explicitly install secrets scanners. gitleaks is already installed by default unless -Minimal or -SkipSecretsInstall is used; trufflehog remains opt-in because it is heavier/noisier.
+  Select supported secrets scanners. Full mode selects this automatically.
 
 .PARAMETER IncludeDependencyScanners
-  Explicitly install dependency scanners. osv-scanner is installed by default unless -Minimal or -SkipDependencyScannerInstall is used; pip-audit is Python/pip-based and remains opt-in unless requested.
+  Select supported dependency scanners. Full mode selects this automatically.
 
 .PARAMETER IncludeSemgrep
   Install semgrep with pipx or Python user install where possible.
@@ -92,7 +94,7 @@
   Install pip-audit with pipx or Python user install where possible.
 
 .PARAMETER IncludeCodeQL
-  Download the CodeQL bundle from the official GitHub CodeQL release. This is large and opt-in.
+  Download the CodeQL bundle from the official GitHub CodeQL release. Full mode selects this automatically; it remains individually selectable in custom/CLI runs.
 
 .PARAMETER RequireTools
   Tool names that must be available for the intended audit. Use with -StrictRequiredTools to fail if missing.
@@ -110,13 +112,19 @@
   Install WinDbg Preview using winget package Microsoft.WinDbg.
   This is official Microsoft tooling, but it is not portable.
 
+.PARAMETER IncludeWindowsSdkDebuggers
+  Install the official Windows SDK Windows Desktop Debuggers feature, including cdb.exe and related SDK debugging tools.
+
+.PARAMETER IncludeVisualStudioBuildTools
+  Install the current stable Visual Studio Build Tools C++ workload, including recommended and optional VCTools components.
+
 .PARAMETER IncludeFFmpeg
   Download and extract ffmpeg-release-essentials.zip from gyan.dev.
-  FFmpeg upstream provides source only and links to third-party Windows builds; this is opt-in.
+  FFmpeg upstream provides source only and links to third-party Windows builds. Full mode selects this automatically.
 
 .PARAMETER IncludeLLVMViaWinget
   Install LLVM using winget package LLVM.LLVM.
-  This is larger and not portable, so it is opt-in.
+  This is larger and not portable. Full mode selects this automatically.
 
 .PARAMETER SkipVSWhere
   Skip downloading portable vswhere.exe from the official microsoft/vswhere GitHub release.
@@ -126,6 +134,9 @@
 
 .PARAMETER WhatIfOnly
   Print planned actions and detection results without downloading or installing.
+
+.PARAMETER Wizard
+  Force the interactive wizard even when other parameters were supplied. The wizard starts automatically when the script is launched without parameters.
 
 .EXAMPLE
   .\install-security-audit-tools.ps1
@@ -144,8 +155,9 @@
   - FFmpeg Windows build: gyan.dev, opt-in third-party build linked from FFmpeg download resources
   - LLVM: winget package LLVM.LLVM, opt-in because it is relatively large
 
-  This script intentionally does not install Windows SDK Debugging Tools, Visual Studio Build Tools,
-  or MSVC by default because they are large. It detects them and reports missing coverage.
+  A confirmed default wizard run selects Full mode and therefore attempts Windows SDK Debugging Tools
+  and the Visual Studio Build Tools C++ workload in addition to the other supported tools. These installs
+  are large, can require administrative elevation, and may require a reboot to finish completely.
 #>
 
 [CmdletBinding()]
@@ -157,6 +169,8 @@ param(
   [switch]$SkipSysinternals,
   [switch]$IncludeGuiSysinternals,
   [switch]$IncludeWinDbg,
+  [switch]$IncludeWindowsSdkDebuggers,
+  [switch]$IncludeVisualStudioBuildTools,
   [switch]$IncludeFFmpeg,
   [switch]$IncludeLLVMViaWinget,
   [switch]$SkipVSWhere,
@@ -183,7 +197,8 @@ param(
   [string[]]$RequireTools = @(),
   [switch]$StrictRequiredTools,
   [switch]$AddToUserPath,
-  [switch]$WhatIfOnly
+  [switch]$WhatIfOnly,
+  [switch]$Wizard
 )
 
 Set-StrictMode -Version Latest
@@ -193,6 +208,218 @@ try {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 } catch {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+}
+
+$script:WizardUsed = $false
+
+function Read-WizardChoice {
+  param([string]$Prompt, [string[]]$Options, [int]$DefaultIndex = 0)
+  while ($true) {
+    Write-Host ""
+    Write-Host $Prompt -ForegroundColor Cyan
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+      $defaultTag = ""
+      if ($i -eq $DefaultIndex) { $defaultTag = " [default]" }
+      Write-Host ("  {0}. {1}{2}" -f ($i + 1), $Options[$i], $defaultTag)
+    }
+    $answer = Read-Host ("Choose 1-{0}" -f $Options.Count)
+    if ([string]::IsNullOrWhiteSpace($answer)) { return $DefaultIndex }
+    $parsed = 0
+    if ([int]::TryParse($answer, [ref]$parsed) -and $parsed -ge 1 -and $parsed -le $Options.Count) { return ($parsed - 1) }
+    Write-Host "Invalid choice." -ForegroundColor Yellow
+  }
+}
+
+function Read-WizardYesNo {
+  param([string]$Prompt, [bool]$Default = $true)
+  $suffix = "y/N"
+  if ($Default) { $suffix = "Y/n" }
+  while ($true) {
+    $answer = (Read-Host "$Prompt [$suffix]").Trim()
+    if (-not $answer) { return $Default }
+    switch ($answer.ToLowerInvariant()) {
+      "y" { return $true }
+      "yes" { return $true }
+      "n" { return $false }
+      "no" { return $false }
+      default { Write-Host "Please answer yes or no." -ForegroundColor Yellow }
+    }
+  }
+}
+
+function Read-WizardText {
+  param([string]$Prompt, [string]$Default = "")
+  $displayDefault = $Default
+  if (-not $displayDefault) { $displayDefault = "<auto/empty>" }
+  $answer = Read-Host "$Prompt [$displayDefault]"
+  if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
+  return $answer.Trim()
+}
+
+function Set-FullInstallSelection {
+  $script:Full = $true
+  $script:Minimal = $false
+  $script:Uninstall = $false
+  $script:SkipSysinternals = $false
+  $script:SkipVSWhere = $false
+  $script:SkipSastInstall = $false
+  $script:SkipSecretsInstall = $false
+  $script:SkipDependencyScannerInstall = $false
+  $script:IncludeGuiSysinternals = $true
+  $script:IncludeWinDbg = $true
+  $script:IncludeWindowsSdkDebuggers = $true
+  $script:IncludeVisualStudioBuildTools = $true
+  $script:IncludeFFmpeg = $true
+  $script:IncludeLLVMViaWinget = $true
+  $script:IncludeSast = $true
+  $script:IncludePythonSast = $true
+  $script:IncludeSecrets = $true
+  $script:IncludeDependencyScanners = $true
+  $script:IncludeSemgrep = $true
+  $script:IncludeFlawfinder = $true
+  $script:IncludeGitleaks = $true
+  $script:IncludeTruffleHog = $true
+  $script:IncludeOSVScanner = $true
+  $script:IncludePipAudit = $true
+  $script:IncludeCodeQL = $true
+}
+
+function Set-MinimalInstallSelection {
+  $script:Full = $false
+  $script:Minimal = $true
+  $script:Uninstall = $false
+  $script:IncludeGuiSysinternals = $false
+  $script:IncludeWinDbg = $false
+  $script:IncludeWindowsSdkDebuggers = $false
+  $script:IncludeVisualStudioBuildTools = $false
+  $script:IncludeFFmpeg = $false
+  $script:IncludeLLVMViaWinget = $false
+  $script:IncludeSast = $false
+  $script:IncludePythonSast = $false
+  $script:IncludeSecrets = $false
+  $script:IncludeDependencyScanners = $false
+  $script:IncludeSemgrep = $false
+  $script:IncludeFlawfinder = $false
+  $script:IncludeGitleaks = $false
+  $script:IncludeTruffleHog = $false
+  $script:IncludeOSVScanner = $false
+  $script:IncludePipAudit = $false
+  $script:IncludeCodeQL = $false
+}
+
+function Read-WizardCommonPaths {
+  $script:InstallRoot = Read-WizardText -Prompt "InstallRoot" -Default $script:InstallRoot
+  $script:ProjectRoot = Read-WizardText -Prompt "ProjectRoot" -Default $script:ProjectRoot
+  $script:DebugToolsMdPath = Read-WizardText -Prompt "DebugToolsMdPath" -Default $script:DebugToolsMdPath
+  $script:DebugToolDiscoveryScriptPath = Read-WizardText -Prompt "DebugToolDiscoveryScriptPath" -Default $script:DebugToolDiscoveryScriptPath
+  $script:ToolPathsEnv = Read-WizardText -Prompt "ToolPathsEnv" -Default $script:ToolPathsEnv
+}
+
+function Read-WizardValidationOptions {
+  $requiredText = Read-WizardText -Prompt "RequireTools (comma-separated; empty = none)" -Default (($script:RequireTools -join ","))
+  if ($requiredText) {
+    $script:RequireTools = @($requiredText -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+  } else {
+    $script:RequireTools = @()
+  }
+  $script:StrictRequiredTools = Read-WizardYesNo -Prompt "StrictRequiredTools" -Default ([bool]$script:StrictRequiredTools)
+  $script:AddToUserPath = Read-WizardYesNo -Prompt "AddToUserPath" -Default ([bool]$script:AddToUserPath)
+  $script:WhatIfOnly = Read-WizardYesNo -Prompt "WhatIfOnly (dry run)" -Default ([bool]$script:WhatIfOnly)
+}
+
+function Read-WizardCustomInstallOptions {
+  $script:Full = $false
+  $script:Minimal = $false
+  $script:Uninstall = $false
+  $script:SkipSysinternals = Read-WizardYesNo -Prompt "SkipSysinternals" -Default $false
+  $script:IncludeGuiSysinternals = Read-WizardYesNo -Prompt "IncludeGuiSysinternals" -Default $true
+  $script:IncludeWinDbg = Read-WizardYesNo -Prompt "IncludeWinDbg" -Default $true
+  $script:IncludeWindowsSdkDebuggers = Read-WizardYesNo -Prompt "IncludeWindowsSdkDebuggers (cdb.exe and SDK debug tools)" -Default $true
+  $script:IncludeVisualStudioBuildTools = Read-WizardYesNo -Prompt "IncludeVisualStudioBuildTools (C++ workload, recommended + optional components)" -Default $true
+  $script:IncludeFFmpeg = Read-WizardYesNo -Prompt "IncludeFFmpeg" -Default $true
+  $script:IncludeLLVMViaWinget = Read-WizardYesNo -Prompt "IncludeLLVMViaWinget" -Default $true
+  $script:SkipVSWhere = Read-WizardYesNo -Prompt "SkipVSWhere" -Default $false
+  $script:SkipSastInstall = Read-WizardYesNo -Prompt "SkipSastInstall" -Default $false
+  $script:SkipSecretsInstall = Read-WizardYesNo -Prompt "SkipSecretsInstall" -Default $false
+  $script:SkipDependencyScannerInstall = Read-WizardYesNo -Prompt "SkipDependencyScannerInstall" -Default $false
+  $script:IncludeSast = Read-WizardYesNo -Prompt "IncludeSast" -Default $true
+  $script:IncludePythonSast = Read-WizardYesNo -Prompt "IncludePythonSast" -Default $true
+  $script:IncludeSecrets = Read-WizardYesNo -Prompt "IncludeSecrets" -Default $true
+  $script:IncludeDependencyScanners = Read-WizardYesNo -Prompt "IncludeDependencyScanners" -Default $true
+  $script:IncludeSemgrep = Read-WizardYesNo -Prompt "IncludeSemgrep" -Default $true
+  $script:IncludeFlawfinder = Read-WizardYesNo -Prompt "IncludeFlawfinder" -Default $true
+  $script:IncludeGitleaks = Read-WizardYesNo -Prompt "IncludeGitleaks" -Default $true
+  $script:IncludeTruffleHog = Read-WizardYesNo -Prompt "IncludeTruffleHog" -Default $true
+  $script:IncludeOSVScanner = Read-WizardYesNo -Prompt "IncludeOSVScanner" -Default $true
+  $script:IncludePipAudit = Read-WizardYesNo -Prompt "IncludePipAudit" -Default $true
+  $script:IncludeCodeQL = Read-WizardYesNo -Prompt "IncludeCodeQL" -Default $true
+}
+
+function Show-WizardPlan {
+  Write-Host ""
+  Write-Host "Planned security-audit tooling action" -ForegroundColor Cyan
+  Write-Host ("  Full: {0}" -f [bool]$script:Full)
+  Write-Host ("  Minimal: {0}" -f [bool]$script:Minimal)
+  Write-Host ("  Uninstall: {0}" -f [bool]$script:Uninstall)
+  Write-Host ("  InstallRoot: {0}" -f $script:InstallRoot)
+  Write-Host ("  ProjectRoot: {0}" -f $script:ProjectRoot)
+  if (-not $script:Uninstall) {
+    Write-Host ("  Visual Studio Build Tools: {0}" -f [bool]$script:IncludeVisualStudioBuildTools)
+    Write-Host ("  Windows SDK Debugging Tools: {0}" -f [bool]$script:IncludeWindowsSdkDebuggers)
+    Write-Host ("  WinDbg: {0}; LLVM: {1}; FFmpeg: {2}; CodeQL: {3}" -f [bool]$script:IncludeWinDbg, [bool]$script:IncludeLLVMViaWinget, [bool]$script:IncludeFFmpeg, [bool]$script:IncludeCodeQL)
+    Write-Host ("  Python SAST/dependency tools: {0}" -f [bool]$script:IncludePythonSast)
+    Write-Host ("  GUI Sysinternals: {0}; trufflehog: {1}" -f [bool]$script:IncludeGuiSysinternals, [bool]$script:IncludeTruffleHog)
+    Write-Host "  Full/default installs can download several GB, change the user Python environment, trigger UAC, and require a reboot." -ForegroundColor Yellow
+  } else {
+    Write-Host ("  Remove shared packages: {0}; remove Python packages: {1}" -f [bool]$script:RemoveSharedPackages, [bool]$script:RemovePythonPackages)
+  }
+  Write-Host ("  WhatIfOnly: {0}" -f [bool]$script:WhatIfOnly)
+}
+
+function Invoke-InstallerWizard {
+  $script:WizardUsed = $true
+  Write-Host ""
+  Write-Host "Security Audit Tools Setup Wizard" -ForegroundColor Cyan
+  Write-Host "The default choice installs every supported tool, including large packages." -ForegroundColor Yellow
+
+  $mode = Read-WizardChoice -Prompt "Select a setup profile" -Options @(
+    "Full install (default; all supported tools including large packages)",
+    "Full install + edit paths/validation settings",
+    "Custom install (expose every install/skip CLI option)",
+    "Minimal/detection-focused mode",
+    "Uninstall",
+    "Cancel"
+  ) -DefaultIndex 0
+
+  switch ($mode) {
+    0 { Set-FullInstallSelection }
+    1 { Set-FullInstallSelection; Read-WizardCommonPaths; Read-WizardValidationOptions }
+    2 { Read-WizardCommonPaths; Read-WizardCustomInstallOptions; Read-WizardValidationOptions }
+    3 {
+      Set-MinimalInstallSelection
+      Read-WizardCommonPaths
+      Read-WizardValidationOptions
+    }
+    4 {
+      $script:Full = $false
+      $script:Minimal = $false
+      $script:Uninstall = $true
+      Read-WizardCommonPaths
+      $script:RemoveSharedPackages = Read-WizardYesNo -Prompt "RemoveSharedPackages" -Default $false
+      $script:RemovePythonPackages = Read-WizardYesNo -Prompt "RemovePythonPackages" -Default $false
+      $script:WhatIfOnly = Read-WizardYesNo -Prompt "WhatIfOnly (dry run)" -Default $false
+    }
+    default { Write-Host "Cancelled."; exit 0 }
+  }
+
+  Show-WizardPlan
+  $confirmationPrompt = "Proceed with this operation?"
+  if ($script:Full -and -not $script:WhatIfOnly) { $confirmationPrompt = "Proceed with the FULL installation?" }
+  if (-not (Read-WizardYesNo -Prompt $confirmationPrompt -Default $true)) { Write-Host "Cancelled."; exit 0 }
+}
+
+if ($Wizard -or $PSBoundParameters.Count -eq 0) {
+  Invoke-InstallerWizard
 }
 
 $InstallRoot = [IO.Path]::GetFullPath($InstallRoot)
@@ -221,12 +448,20 @@ if ($Full -and $Minimal) {
 if ($Full) {
   $IncludeGuiSysinternals = $true
   $IncludeWinDbg = $true
+  $IncludeWindowsSdkDebuggers = $true
+  $IncludeVisualStudioBuildTools = $true
   $IncludeFFmpeg = $true
   $IncludeLLVMViaWinget = $true
+  $IncludeSast = $true
   $IncludeSecrets = $true
   $IncludeDependencyScanners = $true
   $IncludePythonSast = $true
+  $IncludeSemgrep = $true
+  $IncludeFlawfinder = $true
+  $IncludeGitleaks = $true
   $IncludeTruffleHog = $true
+  $IncludeOSVScanner = $true
+  $IncludePipAudit = $true
   $IncludeCodeQL = $true
 }
 
@@ -575,28 +810,27 @@ function Install-OptionalSastTools {
   $defaultPortableSecrets = (-not $Minimal) -and (-not $SkipSecretsInstall)
   $defaultPortableDependency = (-not $Minimal) -and (-not $SkipDependencyScannerInstall)
 
-  # Deliberately false by default: semgrep/flawfinder/pip-audit use pipx/Python user installs,
-  # can change user Python package state, can be slow/noisy, and may install scripts outside PATH.
+  # Outside Full mode, Python/pip-based tools remain opt-in. Skip switches always win over include switches.
   $defaultPythonSast = $false
 
-  $installSemgrep = [bool]$IncludeSemgrep -or [bool]$IncludeSast -or [bool]$IncludePythonSast -or (($defaultPythonSast) -and (-not $SkipSastInstall))
-  $installFlawfinder = [bool]$IncludeFlawfinder -or [bool]$IncludeSast -or [bool]$IncludePythonSast -or (($defaultPythonSast) -and (-not $SkipSastInstall))
-  $installGitleaks = [bool]$IncludeGitleaks -or [bool]$IncludeSecrets -or $defaultPortableSecrets
-  $installTruffleHog = [bool]$IncludeTruffleHog
-  $installOSVScanner = [bool]$IncludeOSVScanner -or [bool]$IncludeDependencyScanners -or $defaultPortableDependency
-  $installPipAudit = [bool]$IncludePipAudit -or [bool]$IncludePythonSast -or ([bool]$IncludeDependencyScanners -and [bool]$IncludePipAudit)
+  $installSemgrep = (-not $SkipSastInstall) -and ([bool]$IncludeSemgrep -or [bool]$IncludeSast -or [bool]$IncludePythonSast -or $defaultPythonSast)
+  $installFlawfinder = (-not $SkipSastInstall) -and ([bool]$IncludeFlawfinder -or [bool]$IncludeSast -or [bool]$IncludePythonSast -or $defaultPythonSast)
+  $installGitleaks = (-not $SkipSecretsInstall) -and ([bool]$IncludeGitleaks -or [bool]$IncludeSecrets -or $defaultPortableSecrets)
+  $installTruffleHog = (-not $SkipSecretsInstall) -and [bool]$IncludeTruffleHog
+  $installOSVScanner = (-not $SkipDependencyScannerInstall) -and ([bool]$IncludeOSVScanner -or [bool]$IncludeDependencyScanners -or $defaultPortableDependency)
+  $installPipAudit = (-not $SkipDependencyScannerInstall) -and ([bool]$IncludePipAudit -or [bool]$IncludePythonSast -or [bool]$IncludeDependencyScanners)
 
   if ($Minimal) {
     Add-WarningMessage "Minimal mode is enabled. Default portable scanner installation is disabled; detection still runs."
   }
   if ($SkipSecretsInstall) {
-    Add-WarningMessage "Default gitleaks installation was skipped by -SkipSecretsInstall."
+    Add-WarningMessage "Secrets-scanner installation was skipped by -SkipSecretsInstall."
   }
   if ($SkipDependencyScannerInstall) {
-    Add-WarningMessage "Default osv-scanner installation was skipped by -SkipDependencyScannerInstall."
+    Add-WarningMessage "Dependency-scanner installation was skipped by -SkipDependencyScannerInstall."
   }
   if (-not $installSemgrep -and -not $installFlawfinder -and -not $installPipAudit) {
-    Add-WarningMessage "Python/pip-based tools semgrep, flawfinder, and pip-audit are not installed by default. Use -IncludePythonSast, -IncludeSast, -IncludeSemgrep, -IncludeFlawfinder, or -IncludePipAudit if you accept user-Python environment changes."
+    Add-Result -Name "Python SAST/dependency tools" -Category "Python-based SAST/dependency install" -Status "skipped-not-requested" -Notes "semgrep/flawfinder/pip-audit were not selected for this run."
   }
 
   if ($installGitleaks) {
@@ -605,19 +839,18 @@ function Install-OptionalSastTools {
   if ($installTruffleHog) {
     Invoke-GitHubLatestAssetDownload -Name "trufflehog" -Repo "trufflesecurity/trufflehog" -AssetRegex "windows.*(x64|amd64).*(\.zip|\.tar\.gz)$" -ExpectedExe "trufflehog.exe"
   } else {
-    Add-WarningMessage "trufflehog was not installed by default because it is heavier/noisier. Use -IncludeTruffleHog if deeper secrets scanning is needed."
+    Add-Result -Name "trufflehog" -Category "secrets install" -Status "skipped-not-requested" -Notes "Installation was not selected or secrets installation was skipped."
   }
   if ($installOSVScanner) {
     Invoke-GitHubLatestAssetDownload -Name "osv-scanner" -Repo "google/osv-scanner" -AssetRegex "windows.*(x64|amd64).*(\.zip|\.exe)$" -ExpectedExe "osv-scanner.exe"
   }
-  if ($IncludeCodeQL) {
+  if ($IncludeCodeQL -and -not $SkipSastInstall) {
     Invoke-GitHubLatestAssetDownload -Name "CodeQL" -Repo "github/codeql-action" -AssetRegex "codeql-bundle-win64\.tar\.gz$" -ExpectedExe "codeql.exe"
-    Add-WarningMessage "CodeQL bundle is large and was installed only because -IncludeCodeQL was requested."
   } else {
-    Add-WarningMessage "CodeQL was not installed by default because it is large. Use -IncludeCodeQL if deep data-flow analysis is required."
+    Add-Result -Name "CodeQL" -Category "SAST/data-flow install" -Status "skipped-not-requested" -Notes "Installation was not selected or SAST installation was skipped."
   }
   if ($installSemgrep) {
-    Add-WarningMessage "semgrep installation uses pipx or Python user install. Prefer pipx; verify local support and results before relying on it."
+    Write-Host "NOTE: semgrep installation uses pipx or Python user install and can change the user Python environment."
     Install-PythonUserTool -Command "semgrep.exe" -PackageName "semgrep"
   }
   if ($installFlawfinder) {
@@ -847,11 +1080,16 @@ function Invoke-SafeDownload {
     [string]$Uri,
     [string]$OutFile,
     [string]$ExpectedPublisherRegex = "",
-    [switch]$RequireValidSignature
+    [switch]$RequireValidSignature,
+    [switch]$RefreshExisting
   )
 
   $parent = Split-Path -Parent $OutFile
   Ensure-Dir $parent
+
+  if ($RefreshExisting -and (Test-Path -LiteralPath $OutFile) -and -not $WhatIfOnly) {
+    Remove-Item -LiteralPath $OutFile -Force -ErrorAction Stop
+  }
 
   if (Test-Path -LiteralPath $OutFile) {
     Write-Host "Already present: $OutFile"
@@ -988,6 +1226,158 @@ function Install-WithWinget {
   Add-Result -Name $Name -Category "winget" -Status "install-failed" -Source "winget:$PackageId" -Notes "ExitCode=$exit; $Reason"
 }
 
+function Test-IsAdministrator {
+  try {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch {
+    return $false
+  }
+}
+
+function Invoke-ElevatedInstallerProcess {
+  param(
+    [string]$Name,
+    [string]$FilePath,
+    [string[]]$ArgumentList,
+    [string]$Category,
+    [string]$Source
+  )
+
+  if ($WhatIfOnly) {
+    Write-Host ("Would run installer: {0} {1}" -f $FilePath, ($ArgumentList -join " "))
+    Add-Result -Name $Name -Category $Category -Status "planned" -Path $FilePath -Source $Source -Notes "WhatIfOnly"
+    return
+  }
+
+  try {
+    $startArgs = @{
+      FilePath = $FilePath
+      ArgumentList = $ArgumentList
+      Wait = $true
+      PassThru = $true
+    }
+    if (-not (Test-IsAdministrator)) {
+      Write-Host "$Name requires administrative elevation; Windows may show a UAC prompt." -ForegroundColor Yellow
+      $startArgs.Verb = "RunAs"
+    }
+
+    $process = Start-Process @startArgs
+    $exitCode = $process.ExitCode
+    if ($exitCode -eq 0 -or $exitCode -eq 3010) {
+      $notes = "Installer exit code $exitCode"
+      if ($exitCode -eq 3010) { $notes += "; reboot required" }
+      Add-Result -Name $Name -Category $Category -Status "installed-or-present" -Path $FilePath -Source $Source -Notes $notes
+      return
+    }
+
+    Add-WarningMessage "$Name installer failed with exit code $exitCode."
+    Add-Result -Name $Name -Category $Category -Status "install-failed" -Path $FilePath -Source $Source -Notes "ExitCode=$exitCode"
+  } catch {
+    Add-WarningMessage "$Name installer could not be started or completed: $($_.Exception.Message)"
+    Add-Result -Name $Name -Category $Category -Status "install-failed" -Path $FilePath -Source $Source -Notes $_.Exception.Message
+  }
+}
+
+function Install-WindowsSdkDebuggingTools {
+  $installerDir = Join-Path $BinRoot "installers"
+  $installer = Join-Path $installerDir "winsdksetup.exe"
+  $source = "https://go.microsoft.com/fwlink/?linkid=2376217"
+
+  if ($WhatIfOnly) {
+    Invoke-SafeDownload -Name "winsdksetup.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "planned" -Path $installer -Source $source -Notes "Feature=OptionId.WindowsDesktopDebuggers"
+    return
+  }
+
+  try {
+    Invoke-SafeDownload -Name "winsdksetup.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+  } catch {
+    Add-WarningMessage "Windows SDK bootstrapper download failed: $($_.Exception.Message)"
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "install-failed" -Source $source -Notes $_.Exception.Message
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $installer)) {
+    Add-WarningMessage "Windows SDK bootstrapper was not available after download."
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "install-failed" -Source $source
+    return
+  }
+
+  $signature = Get-FileSignatureSummary -Path $installer -ExpectedPublisherRegex "Microsoft"
+  if ($signature -notlike "Valid;*") {
+    Add-WarningMessage "Windows SDK bootstrapper signature validation failed; refusing to execute it. Signature: $signature"
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "signature-warning" -Path $installer -Source $source -SignatureStatus $signature
+    return
+  }
+
+  Invoke-ElevatedInstallerProcess -Name "Windows SDK Debugging Tools" -FilePath $installer -ArgumentList @("/features", "OptionId.WindowsDesktopDebuggers", "/quiet", "/norestart") -Category "large toolchain install" -Source $source
+}
+
+function Test-VisualStudioVCToolsInstalled {
+  param([string]$VSWherePath)
+  if (-not $VSWherePath -or -not (Test-Path -LiteralPath $VSWherePath)) { return $false }
+  try {
+    $installPath = & $VSWherePath -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    return [bool]$installPath
+  } catch {
+    return $false
+  }
+}
+
+function Install-VisualStudioBuildTools {
+  param([string]$VSWherePath)
+
+  if (Test-VisualStudioVCToolsInstalled -VSWherePath $VSWherePath) {
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "already-installed" -Source "vswhere" -Notes "Microsoft.VisualStudio.Component.VC.Tools.x86.x64 is already available."
+    return
+  }
+
+  $installerDir = Join-Path $BinRoot "installers"
+  $installer = Join-Path $installerDir "vs_buildtools.exe"
+  $source = "https://aka.ms/vs/stable/vs_buildtools.exe"
+
+  if ($WhatIfOnly) {
+    Invoke-SafeDownload -Name "vs_buildtools.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "planned" -Path $installer -Source $source -Notes "Microsoft.VisualStudio.Workload.VCTools; includeRecommended; includeOptional"
+    return
+  }
+
+  try {
+    Invoke-SafeDownload -Name "vs_buildtools.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+  } catch {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper download failed: $($_.Exception.Message)"
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "install-failed" -Source $source -Notes $_.Exception.Message
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $installer)) {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper was not available after download."
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "install-failed" -Source $source
+    return
+  }
+
+  $signature = Get-FileSignatureSummary -Path $installer -ExpectedPublisherRegex "Microsoft"
+  if ($signature -notlike "Valid;*") {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper signature validation failed; refusing to execute it. Signature: $signature"
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "signature-warning" -Path $installer -Source $source -SignatureStatus $signature
+    return
+  }
+
+  $arguments = @(
+    "--passive",
+    "--wait",
+    "--norestart",
+    "--nocache",
+    "--add",
+    "Microsoft.VisualStudio.Workload.VCTools",
+    "--includeRecommended",
+    "--includeOptional"
+  )
+  Invoke-ElevatedInstallerProcess -Name "Visual Studio Build Tools C++ workload" -FilePath $installer -ArgumentList $arguments -Category "large toolchain install" -Source $source
+}
+
 function Resolve-DebugToolDiscoveryScript {
   $candidates = New-Object System.Collections.Generic.List[string]
 
@@ -1117,7 +1507,7 @@ if (-not $SkipSysinternals) {
   if ($IncludeGuiSysinternals) {
     $coreTools += @("Procmon.exe", "procexp.exe")
   } else {
-    Add-WarningMessage "GUI Sysinternals tools procmon.exe and procexp.exe were not downloaded by default. Use -IncludeGuiSysinternals if runtime tracing/process inspection is needed."
+    Add-Result -Name "GUI Sysinternals" -Category "Sysinternals" -Status "skipped-not-requested" -Notes "Procmon.exe and procexp.exe were not selected for this run."
   }
 
   foreach ($tool in $coreTools | Select-Object -Unique) {
@@ -1141,24 +1531,38 @@ if (-not $SkipVSWhere) {
     -RequireValidSignature
 } else {
   Add-WarningMessage "vswhere download was skipped. MSVC tool discovery may be less reliable."
+  Add-Result -Name "vswhere.exe" -Category "Visual Studio discovery" -Status "skipped-not-requested"
 }
 
 if (-not $vswherePath -or -not (Test-Path -LiteralPath $vswherePath)) {
   $vswherePath = Test-CommandPath "vswhere.exe"
 }
 
+# Large native/debug toolchains.
+if ($IncludeVisualStudioBuildTools) {
+  Install-VisualStudioBuildTools -VSWherePath $vswherePath
+} else {
+  Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "skipped-not-requested"
+}
+
+if ($IncludeWindowsSdkDebuggers) {
+  Install-WindowsSdkDebuggingTools
+} else {
+  Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "skipped-not-requested"
+}
+
 # Optional WinDbg Preview.
 if ($IncludeWinDbg) {
   Install-WithWinget -Name "WinDbg Preview" -PackageId "Microsoft.WinDbg" -Reason "Official Microsoft debugger; not portable"
 } else {
-  Add-WarningMessage "WinDbg Preview was not installed by default. Use -IncludeWinDbg if crash dump debugging is needed and Windows SDK Debugging Tools are unavailable."
+  Add-Result -Name "WinDbg Preview" -Category "winget" -Status "skipped-not-requested"
 }
 
 # Optional LLVM.
 if ($IncludeLLVMViaWinget) {
   Install-WithWinget -Name "LLVM" -PackageId "LLVM.LLVM" -Reason "Provides llvm-strings/llvm-objdump; larger non-portable package"
 } else {
-  Add-WarningMessage "LLVM was not installed by default. Use -IncludeLLVMViaWinget if llvm-strings or llvm-objdump is needed."
+  Add-Result -Name "LLVM" -Category "winget" -Status "skipped-not-requested"
 }
 
 # Optional FFmpeg build.
@@ -1183,9 +1587,9 @@ if ($IncludeFFmpeg) {
     }
   }
 
-  Add-WarningMessage "FFmpeg Windows binary was downloaded from an opt-in third-party build source. Record hash and source in audit evidence."
+  Write-Host "NOTE: FFmpeg Windows binary came from the configured third-party build source; source/hash are recorded in evidence."
 } else {
-  Add-WarningMessage "FFmpeg/ffprobe were not installed by default. Use -IncludeFFmpeg only when capture/media inspection is needed."
+  Add-Result -Name "FFmpeg" -Category "media/capture" -Status "skipped-not-requested"
 }
 
 # Add portable dirs to PATH if requested.
@@ -1214,6 +1618,84 @@ if ($AddToUserPath) {
 Invoke-DebugToolDiscovery
 Test-RequiredToolGate
 
+function Get-FinalUnavailableResults {
+  $latestByName = @{}
+  foreach ($result in $script:Results) {
+    if (-not $result.name) { continue }
+    $latestByName[[string]$result.name] = $result
+  }
+
+  $problemStatuses = @(
+    "missing",
+    "failed",
+    "install-failed",
+    "installed-unresolved",
+    "signature-warning",
+    "missing-winget",
+    "missing-helper",
+    "package-installed-alias-not-resolved",
+    "asset-not-found",
+    "python-missing",
+    "skipped-not-requested"
+  )
+
+  return @(
+    $latestByName.Values |
+      Where-Object { $problemStatuses -contains [string]$_.status } |
+      Sort-Object category, name
+  )
+}
+
+function Write-CompletionSummary {
+  param([object[]]$UnavailableResults)
+
+  Write-Host ""
+  Write-Host "===== Installation / discovery summary =====" -ForegroundColor Cyan
+
+  if ($WhatIfOnly) {
+    Write-Host "Dry run completed; no installation changes were requested." -ForegroundColor Yellow
+  }
+
+  if (-not $UnavailableResults -or $UnavailableResults.Count -eq 0) {
+    Write-Host "All selected/applicable tools were installed or found." -ForegroundColor Green
+  } else {
+    Write-Host ("{0} tool(s)/item(s) were not installed, not found, unresolved, failed, or intentionally skipped:" -f $UnavailableResults.Count) -ForegroundColor Yellow
+    foreach ($item in $UnavailableResults) {
+      $details = [string]$item.notes
+      if (-not $details) { $details = [string]$item.source }
+      $suffix = ""
+      if ($details) { $suffix = "; " + $details }
+      Write-Host ("  - {0} [{1}] status={2}{3}" -f $item.name, $item.category, $item.status, $suffix)
+    }
+  }
+
+  $distinctWarnings = @($script:Warnings | Select-Object -Unique)
+  if ($distinctWarnings.Count -gt 0) {
+    Write-Host ""
+    Write-Host ("Warnings recorded ({0}):" -f $distinctWarnings.Count) -ForegroundColor Yellow
+    foreach ($warning in $distinctWarnings) {
+      Write-Host ("  - " + $warning)
+    }
+  }
+
+  if (-not $WhatIfOnly) {
+    Write-Host ""
+    Write-Host "Evidence:"
+    Write-Host ("  Security manifest: {0}" -f $ManifestPath)
+    Write-Host ("  Debug-tool manifest: {0}" -f $DebugToolManifestPath)
+  }
+}
+
+$finalUnavailableResults = @(Get-FinalUnavailableResults)
+$finalFailureResults = @(
+  $finalUnavailableResults |
+    Where-Object {
+      $status = [string]$_.status
+      $status -ne "skipped-not-requested" -and
+      ($status -ne "missing" -or $Full)
+    }
+)
+
 # Write outputs.
 $manifest = [pscustomobject]@{
   generated_at = (Get-Date).ToString("o")
@@ -1224,9 +1706,14 @@ $manifest = [pscustomobject]@{
   strict_required_tools = [bool]$StrictRequiredTools
   required_tools = $RequireTools
   required_tool_missing = [bool]$script:RequiredToolMissing
+  wizard_used = [bool]$script:WizardUsed
   full_mode = [bool]$Full
   minimal_mode = [bool]$Minimal
-  default_python_sast_install = $false
+  include_windows_sdk_debuggers = [bool]$IncludeWindowsSdkDebuggers
+  include_visual_studio_build_tools = [bool]$IncludeVisualStudioBuildTools
+  unavailable_results = $finalUnavailableResults
+  failure_results = $finalFailureResults
+  default_python_sast_install = [bool]$IncludePythonSast
   default_secrets_install = [bool]((-not $Minimal) -and (-not $SkipSecretsInstall))
   default_dependency_scanner_install = [bool]((-not $Minimal) -and (-not $SkipDependencyScannerInstall))
   host = [pscustomobject]@{
@@ -1280,17 +1767,20 @@ if ($WhatIfOnly) {
   Write-Host "Wrote Markdown evidence: $MarkdownPath"
 }
 
+Write-CompletionSummary -UnavailableResults $finalUnavailableResults
+
 if ($StrictRequiredTools -and $script:RequiredToolMissing) {
   Write-Host ""
   Write-Host "Completed with missing required tools. Strict required-tool gate failed." -ForegroundColor Red
   exit 3
 }
 
-if ($script:Warnings.Count -gt 0) {
+if ($script:Warnings.Count -gt 0 -or $finalFailureResults.Count -gt 0) {
   Write-Host ""
-  Write-Host "Completed with warnings. These should be reflected in audit confidence/scoring." -ForegroundColor Yellow
+  Write-Host "Completed with unavailable/failed tools or warnings; see the summary above." -ForegroundColor Yellow
   exit 2
 }
 
-Write-Host "Completed without warnings." -ForegroundColor Green
+Write-Host ""
+Write-Host "Completed successfully; all selected/applicable tools were installed or found." -ForegroundColor Green
 exit 0

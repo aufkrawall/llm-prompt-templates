@@ -45,22 +45,22 @@ SAST results are evidence, not proof of security. Findings must be triaged for r
 
 ## Windows installer default policy
 
-On Windows, `install-security-audit-tools.ps1` installs portable, low-side-effect security scanners by default where possible. Generic debugger/developer-tool path discovery is delegated to the shared non-mutating `tools/discover-debug-tools.ps1` helper:
+On Windows, launching `install-security-audit-tools.ps1` without parameters opens an interactive wizard. Its default profile is **Full install**; after final confirmation it attempts every supported install path, including large packages and Python/pip-based scanners.
 
-- `gitleaks`
-- `osv-scanner`
+The default Full profile includes or attempts:
 
-The following remain opt-in:
+- `gitleaks`, `trufflehog`, and `osv-scanner`
+- `semgrep`, `flawfinder`, and `pip-audit` through pipx/Python user installs
+- `CodeQL`
+- WinDbg, LLVM, FFmpeg, and GUI/CLI Sysinternals
+- Windows SDK Debugging Tools
+- Visual Studio Build Tools/MSVC C++ workload
 
-- `CodeQL`, because it is large
-- `trufflehog`, because it is deeper/heavier/noisier than `gitleaks`
-- `semgrep`, `flawfinder`, and `pip-audit`, because they use pipx/Python user installs and can mutate the user Python environment
-- language toolchain-native scanners such as `cargo-audit` and `govulncheck`, because they require existing Rust/Go toolchains
-- platform/runtime tools such as WinDbg, LLVM, FFmpeg, and GUI Sysinternals; when present, their paths are recorded by the generic debug-tool manifest rather than security-specific discovery logic
+Generic debugger/developer-tool path discovery remains delegated to the shared non-mutating `tools/discover-debug-tools.ps1` helper after installation.
 
-`bandit` is also useful for Python projects, but the current installer does not manage it. Use it when already available, or install it only with explicit authorization under the same Python-environment caution applied to other pip/pipx-based scanners.
+Language toolchain-native scanners such as `cargo-audit` and `govulncheck` are detected when applicable but are not currently installed by this script. `bandit` is also useful for Python projects but is not currently managed by the installer. Missing applicable unmanaged tools must be reported in the final availability/coverage evidence.
 
-Use `-Minimal` or the `-Skip*Install` switches when a non-mutating detector-only setup is required.
+Use the wizard's custom/minimal profiles or explicit `-Minimal` / `-Skip*Install` switches when the Full profile's downloads, shared-package changes, UAC elevation, or Python-environment changes are not acceptable. Skip switches take precedence over matching include switches.
 
 ## General rules
 
