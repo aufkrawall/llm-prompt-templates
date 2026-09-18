@@ -28,10 +28,10 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 
 ## Tests and diagnostics
 
-- For bug fixes and behavioral changes, add or improve focused regression coverage when practical; prefer tests that fail before the fix and pass after it.
+- For bug fixes and behavioral changes, explicitly assess regression coverage and diagnostics even when existing tests pass; add or improve focused coverage when practical, preferably tests that fail before the fix and pass after it.
 - For features, cover the new contract and important edge cases when suitable test infrastructure exists.
 - Do not add low-value tests merely to satisfy a blanket rule. If useful automation is impractical, preserve a reproducible manual verification method and state the limitation.
-- Improve diagnostics only when they materially aid diagnosis. Keep them high-signal, non-secret, and low-overhead.
+- Improve diagnostics only when they materially aid recurrence diagnosis. Keep them high-signal, non-secret, low-overhead, and preserve useful debug information when compatible with release policy.
 - Do not introduce sleeps or timing assumptions into tests unless timing is the behavior under test and the test remains deterministic.
 
 ## Project-specific constraints
@@ -58,8 +58,10 @@ Keep incident history and one-off debugging details in `llm-wiki/`, not here.
 ## `llm-wiki/` workflow
 
 - For substantial work, start with `llm-wiki/index.md` when present, read only relevant topic pages, then consult `llm-wiki/log/recent.md` for active or stale-risk areas.
+- Read archives only when historical context is needed or explicitly linked.
 - Skip broad wiki loading for trivial localized edits unless the area is unfamiliar or likely stale.
 - If substantial work would benefit from durable project memory and the core wiki pages are missing, create a minimal `llm-wiki/index.md`, `llm-wiki/overview.md`, and `llm-wiki/log/recent.md` after inspecting the repository.
-- Prefer updating existing topic pages. Keep current understanding on topic pages and chronology or partial investigations in `llm-wiki/log/recent.md`.
+- Verify material wiki claims against primary project evidence; mark uncertainty as an open question, stale-risk, or unverified claim.
+- Prefer updating existing topic pages; create new pages only for reusable topics. Keep current understanding on topic pages and chronology or partial investigations in `llm-wiki/log/recent.md`.
 - Do not copy raw logs or long command output into durable wiki pages unless the output itself is reusable evidence.
 - After substantial wiki changes, check for stale or contradictory claims, duplicates, broken links, and obsolete pages.
