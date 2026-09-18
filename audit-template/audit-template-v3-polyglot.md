@@ -111,7 +111,7 @@ For change-focused audits, inspect changed code plus affected callers/callees, c
 
 Validate before reporting: establish reachability and preconditions, check for existing mitigation, attempt to falsify the concern, reproduce where safe, compare relevant variants, and merge shared-root-cause duplicates. Unverified concerns belong under coverage gaps, not confirmed findings.
 
-Prioritize broken central behavior, data loss/crashes, security/privacy, runtime or memory/resource safety, unsafe recovery/high-blast-radius behavior, then material validation gaps. Report maintainability only when it materially increases risk, fragility, or implementation cost.
+Prioritize broken central behavior, data loss/crashes, security/privacy, runtime or memory/resource safety, unsafe recovery/high-blast-radius behavior, then material validation gaps. Treat regression-test gaps and insufficient recurrence diagnostics as material when they make a non-trivial defect likely to recur or materially harder to diagnose. Report maintainability only when it materially increases risk, fragility, or implementation cost.
 
 ## Recommendation limit
 
@@ -215,6 +215,7 @@ Group selected findings into the fewest applicable phases, ordered by severity a
 For later fixes:
 - Make the smallest safe root-cause change and preserve intended public/API/config/persisted/ABI/package/UI/integration contracts unless the contract itself is wrong or unsafe.
 - Keep refactors tied to a selected finding or material risk reduction; do not add unrelated features or cleanup.
+- Treat focused regression coverage and recurrence diagnosability as first-class implementation requirements. Add a focused automated regression test for non-trivial behavioral fixes when practical; if omitted, state why. Add enough high-signal diagnostics to make credible recurrences diagnosable without relying on luck or an attached debugger.
 - Preserve useful diagnostics and hardening. Fix warning/analyzer/sanitizer/compiler/linker causes rather than broadly suppressing them.
 - Treat parser/native/FFI/unsafe/interop/concurrency/dynamic-loading/privileged and other high-blast-radius boundaries as high-risk until validated, without treating the mechanism itself as a defect.
 - Validate fixes with the original reproduction and focused automated regression tests when practical, across affected profiles/configurations/artifact modes.
