@@ -326,7 +326,7 @@ function Resolve-MsvcTool {
     Get-OverrideValue -Name "MSVC_TOOLS_ARM64"
   ) | Where-Object { $_ } | Select-Object -Unique
 
-  $path = Find-ToolInRoots -ToolName $ToolName -Roots $overrideRoots
+  $path = Find-ToolInRoots -ToolName $ToolName -Roots $overrideRoots -Recurse
   if ($path) {
     Add-Result -Name $ToolName -Category "MSVC binary tools" -Status "available" -Path $path -Source "tool-path override"
     return
@@ -377,7 +377,7 @@ function Resolve-GenericTool {
     if ($value) { $value }
   }
 
-  $path = Find-ToolInRoots -ToolName $ToolName -Roots @($overrideRoots)
+  $path = Find-ToolInRoots -ToolName $ToolName -Roots @($overrideRoots) -Recurse
   if ($path) {
     Add-Result -Name $ToolName -Category $Category -Status "available" -Path $path -Source "tool-path override"
     return
@@ -447,7 +447,10 @@ foreach ($tool in @("ffmpeg.exe", "ffprobe.exe")) {
   Resolve-GenericTool -ToolName $tool -Category "media/capture" -OverrideKeys @("FFMPEG_ROOT")
 }
 
-Resolve-GenericTool -ToolName "vswhere.exe" -Category "Visual Studio discovery"
+$vswhereKnownRoots = @()
+$programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")
+if ($programFilesX86) { $vswhereKnownRoots += (Join-Path $programFilesX86 "Microsoft Visual Studio\Installer") }
+Resolve-GenericTool -ToolName "vswhere.exe" -Category "Visual Studio discovery" -KnownRoots $vswhereKnownRoots
 
 $resolvedToolPathsEnv = $null
 if ($ToolPathsEnv) { $resolvedToolPathsEnv = Resolve-ConfiguredPath -Value $ToolPathsEnv }
