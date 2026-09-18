@@ -82,8 +82,9 @@ try {
   Set-Content -LiteralPath $managedFfmpeg -Value "" -Encoding ASCII
 
   $effectiveRoots = @(Get-EffectiveAdditionalToolRoots -ConfiguredRoots @())
-  if ($effectiveRoots -notcontains ([IO.Path]::GetFullPath($managedBin))) {
-    throw "SecurityAuditTools managed bin root was not auto-discovered."
+  $managedFfmpegRoot = Join-Path $managedBin "ffmpeg"
+  if ($effectiveRoots -notcontains ([IO.Path]::GetFullPath($managedFfmpegRoot))) {
+    throw "SecurityAuditTools managed FFmpeg root was not auto-discovered."
   }
   $resolvedManagedFfmpeg = Find-ToolInRoots -ToolName "ffmpeg.exe" -Roots $effectiveRoots -Recurse
   if ($resolvedManagedFfmpeg -ne $managedFfmpeg) {
