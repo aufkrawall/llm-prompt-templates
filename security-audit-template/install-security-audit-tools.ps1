@@ -284,6 +284,29 @@ function Set-FullInstallSelection {
   $script:IncludeCodeQL = $true
 }
 
+function Set-MinimalInstallSelection {
+  $script:Full = $false
+  $script:Minimal = $true
+  $script:Uninstall = $false
+  $script:IncludeGuiSysinternals = $false
+  $script:IncludeWinDbg = $false
+  $script:IncludeWindowsSdkDebuggers = $false
+  $script:IncludeVisualStudioBuildTools = $false
+  $script:IncludeFFmpeg = $false
+  $script:IncludeLLVMViaWinget = $false
+  $script:IncludeSast = $false
+  $script:IncludePythonSast = $false
+  $script:IncludeSecrets = $false
+  $script:IncludeDependencyScanners = $false
+  $script:IncludeSemgrep = $false
+  $script:IncludeFlawfinder = $false
+  $script:IncludeGitleaks = $false
+  $script:IncludeTruffleHog = $false
+  $script:IncludeOSVScanner = $false
+  $script:IncludePipAudit = $false
+  $script:IncludeCodeQL = $false
+}
+
 function Read-WizardCommonPaths {
   $script:InstallRoot = Read-WizardText -Prompt "InstallRoot" -Default $script:InstallRoot
   $script:ProjectRoot = Read-WizardText -Prompt "ProjectRoot" -Default $script:ProjectRoot
@@ -373,9 +396,7 @@ function Invoke-InstallerWizard {
     1 { Set-FullInstallSelection; Read-WizardCommonPaths; Read-WizardValidationOptions }
     2 { Read-WizardCommonPaths; Read-WizardCustomInstallOptions; Read-WizardValidationOptions }
     3 {
-      $script:Full = $false
-      $script:Minimal = $true
-      $script:Uninstall = $false
+      Set-MinimalInstallSelection
       Read-WizardCommonPaths
       Read-WizardValidationOptions
     }
