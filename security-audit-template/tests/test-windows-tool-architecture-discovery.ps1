@@ -20,28 +20,6 @@ function Assert-SequenceEqual {
   }
 }
 
-function Get-FunctionFromInstaller {
-  param(
-    [System.Management.Automation.Language.ScriptBlockAst]$Ast,
-    [string]$Name
-  )
-
-  $functionAst = $Ast.Find(
-    {
-      param($node)
-      $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-        $node.Name -eq $Name
-    },
-    $true
-  )
-
-  if (-not $functionAst) {
-    throw "Required function '$Name' was not found in $InstallerPath."
-  }
-
-  Invoke-Expression $functionAst.Extent.Text
-}
-
 $tokens = $null
 $parseErrors = $null
 $resolvedInstallerPath = (Resolve-Path -LiteralPath $InstallerPath).Path
@@ -62,7 +40,20 @@ foreach ($functionName in @(
   "Get-MsvcBinaryToolArchitecturePreferences",
   "Select-PreferredMsvcToolMatch"
 )) {
-  Get-FunctionFromInstaller -Ast $ast -Name $functionName
+  $functionAst = $ast.Find(
+    {
+      param($node)
+      $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq $functionName
+    },
+    $true
+  )
+
+  if (-not $functionAst) {
+    throw "Required function '$functionName' was not found in $InstallerPath."
+  }
+
+  . ([scriptblock]::Create($functionAst.Extent.Text))
 }
 
 $originalProgramFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
@@ -83,7 +74,7 @@ try {
     }
   )
   Assert-SequenceEqual -Label "AMD64 debugger path preference" -Actual $architectures -Expected @(
-    "x64", "x64", "x86", "x86", "arm64", "arm64"
+    "x64", "x64", "x86", "x86", "arm64", "arm64", "arm", "arm"
   )
   if (($paths | Where-Object { (Split-Path -Leaf $_) -ne "cdb.exe" }).Count -ne 0) {
     throw "Debugger path generation changed the requested tool name."
@@ -97,7 +88,7 @@ try {
     }
   )
   Assert-SequenceEqual -Label "ARM64 debugger path preference" -Actual $architectures -Expected @(
-    "arm64", "arm64", "x64", "x64", "x86", "x86"
+    "arm64", "arm64", "x64", "x64", "x86", "x86", "arm", "arm"
   )
 
   $env:PROCESSOR_ARCHITECTURE = "AMD64"
@@ -106,7 +97,7 @@ try {
     [pscustomobject]@{ FullName = "C:\VS\VC\Tools\MSVC\14.0\bin\Hostx64\x86\dumpbin.exe" },
     [pscustomobject]@{ FullName = "C:\VS\VC\Tools\MSVC\14.0\bin\Hostx64\x64\dumpbin.exe" }
   )
-  $preferred = Select-PreferredMsvcToolMatch -Matches $msvcMatches
+  $preferred = Select-PreferredMsvcToolMatch -Candidates $msvcMatches
   if ($preferred.FullName -notlike "*\Hostx64\x64\dumpbin.exe") {
     throw "AMD64 MSVC tool preference did not select Hostx64\x64."
   }
@@ -116,7 +107,7 @@ try {
     [pscustomobject]@{ FullName = "C:\VS\VC\Tools\MSVC\14.0\bin\Hostx64\x64\dumpbin.exe" },
     [pscustomobject]@{ FullName = "C:\VS\VC\Tools\MSVC\14.0\bin\Hostarm64\arm64\dumpbin.exe" }
   )
-  $preferred = Select-PreferredMsvcToolMatch -Matches $msvcMatches
+  $preferred = Select-PreferredMsvcToolMatch -Candidates $msvcMatches
   if ($preferred.FullName -notlike "*\Hostarm64\arm64\dumpbin.exe") {
     throw "ARM64 MSVC tool preference did not select Hostarm64\arm64."
   }
