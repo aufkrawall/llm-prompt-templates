@@ -56,7 +56,7 @@ $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSO
 $overrideFile = $null
 
 try {
-  $script:Warnings = New-Object System.Collections.Generic.List[string]
+  $script:Warnings = [System.Collections.Generic.List[string]]::new()
   function Add-WarningMessage { param([string]$Message) $script:Warnings.Add($Message) | Out-Null }
 
   $ProjectRoot = [IO.Path]::GetTempPath()
