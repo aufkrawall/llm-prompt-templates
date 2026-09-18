@@ -86,11 +86,14 @@ Check these files in order:
 1. `llm-wiki/debug-tools-security-audit.md` — preferred local debug/binary/security-audit tool inventory
 2. `llm-wiki/debug-tools.md` — fallback or supplemental project-specific debugging/tool inventory
 3. `security-audit-sast-addendum.md` — root-level source SAST, secrets, dependency, and cross-platform tooling guidance
-4. `tool-paths.env` — root-level local machine/project path overrides, if present
-5. `tool-paths.example.env` — root-level documented path variables and expected layout
-6. `install-security-audit-tools.ps1` — optional root-level Windows installer/detector
-7. `install-security-audit-tools.sh` — optional root-level Linux/macOS installer/detector
-8. other relevant root-level audit files explicitly referenced by the project
+4. `debug-tool-manifest.json` — generic debugger/developer-tool discovery evidence, if generated
+5. `security-audit-tool-manifest.json` — security-specific scanner/install evidence, if generated
+6. `tool-paths.env` — root-level local machine/project path overrides, if present
+7. `tool-paths.example.env` — merged generic + security documented path variables
+8. `tools/discover-debug-tools.ps1` — optional non-mutating Windows generic tool discovery helper
+9. `install-security-audit-tools.ps1` — optional root-level Windows security installer
+10. `install-security-audit-tools.sh` — optional root-level Linux/macOS installer/detector
+11. other relevant root-level audit files explicitly referenced by the project
 
 Preference rules:
 
@@ -113,16 +116,18 @@ Before starting the audit, inspect the repository for local audit knowledge unde
 
 Treat these files as project-local audit guidance and tool inventories, not as authoritative proof that a tool is installed or usable.
 
-When `install-security-audit-tools.ps1` or `install-security-audit-tools.sh` has been run, treat the generated tool manifest as the first source of truth for actual tool paths. Do not assume that example paths in `llm-wiki/debug-tools-security-audit.md` are valid on the current machine.
+When `tools/discover-debug-tools.ps1` has been run, treat `debug-tool-manifest.json` as the first source of truth for generic debugger/developer-tool paths. When a security installer has been run, use `security-audit-tool-manifest.json` for security-specific scanner/install evidence. Do not assume that example paths in `llm-wiki/debug-tools-security-audit.md` are valid on the current machine.
 
 Tool path precedence:
 
-1. generated `security-audit-tool-manifest.json`
-2. local `tool-paths.env`
-3. shell/PATH discovery such as `Get-Command`, `where`, or `command -v`
-4. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
-5. safe fallbacks
+1. generated `debug-tool-manifest.json` for generic debugger/developer tools
+2. generated `security-audit-tool-manifest.json` for security-specific tools
+3. local `tool-paths.env`
+4. shell/PATH discovery such as `Get-Command`, `where`, or `command -v`
+5. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
+6. safe fallbacks
 
+On Windows, `install-security-audit-tools.ps1` delegates generic debugger/MSVC/LLVM/Sysinternals/FFmpeg path discovery to `tools/discover-debug-tools.ps1`; do not duplicate that path-generation logic in security-specific guidance.
 
 If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional and should follow its conservative defaults. The audit must still verify the resulting tool availability instead of assuming installation succeeded.
 
@@ -297,13 +302,14 @@ Auditors and LLM agents must not guess tool paths.
 
 When tool detector output exists, resolve tools in this order:
 
-1. generated `security-audit-tool-manifest.json`
-2. `tool-paths.env`
-3. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
-4. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
-5. safe fallback tools
+1. generated `debug-tool-manifest.json` for generic debugger/developer tools
+2. generated `security-audit-tool-manifest.json` for security-specific scanner/install results
+3. `tool-paths.env`
+4. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
+5. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
+6. safe fallback tools
 
-If a tool appears in the manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
+If a tool appears in the relevant manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
 
 Default coverage mode is advisory:
 

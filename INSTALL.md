@@ -16,11 +16,13 @@ Do not ask which template they mean unless the target repository makes the defau
 
 ## Default project integration
 
-Install and adapt the reusable project-agent baseline plus both generic project-local tool inventories:
+Install and adapt the reusable project-agent baseline, both project-local tool inventories, and the shared non-mutating debug-tool discovery helper:
 
 ```text
 llm-wiki-agents.md-template/AGENTS.md
 llm-wiki-agents.md-template/llm-wiki/debug-tools.md
+common-tools/discover-debug-tools.ps1
+common-tools/tool-paths.example.env
 security-audit-template/llm-wiki/debug-tools-security-audit.md
 ```
 
@@ -30,6 +32,8 @@ Target layout:
 <project-root>/AGENTS.md
 <project-root>/llm-wiki/debug-tools.md
 <project-root>/llm-wiki/debug-tools-security-audit.md
+<project-root>/tools/discover-debug-tools.ps1
+<project-root>/tool-paths.example.env
 ```
 
 This is a **merge-and-adapt operation**, not a blind copy.
@@ -81,7 +85,17 @@ If it already exists:
 
 Treat machine-specific absolute paths as local examples unless the target project explicitly requires them.
 
-### 4. Integrate `llm-wiki/debug-tools-security-audit.md`
+### 4. Integrate generic debug-tool discovery
+
+Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/discover-debug-tools.ps1`.
+
+- This helper is discovery-only: it must not install packages, download tools, edit PATH, or mutate debugger/system state.
+- Merge `common-tools/tool-paths.example.env` into the project's root `tool-paths.example.env` or equivalent path-override example instead of overwriting existing variables.
+- On Windows, when current-machine tool paths materially help the integration, the helper may be run to produce `debug-tool-manifest.json`. Use that manifest as evidence when adapting `llm-wiki/debug-tools.md`: record durable path rules, architecture requirements, or project-local tool roots, and record exact machine paths only when the target repository intentionally tracks them.
+- Do not commit the generated manifest or incidental machine-specific absolute paths unless the target repository explicitly intends to track them.
+- Do not duplicate Windows SDK/MSVC path-generation logic into security-specific scripts or wiki pages; keep generic discovery centralized.
+
+### 5. Integrate `llm-wiki/debug-tools-security-audit.md`
 
 If `llm-wiki/debug-tools-security-audit.md` does not exist:
 
@@ -98,7 +112,7 @@ If it already exists:
 
 The presence of this file does **not** mean the full security-audit bundle has been installed and does not authorize running tool installers or intrusive diagnostics.
 
-### 5. Preserve existing project knowledge
+### 6. Preserve existing project knowledge
 
 When existing `llm-wiki/` pages are present:
 
@@ -107,7 +121,7 @@ When existing `llm-wiki/` pages are present:
 - repair only clear conflicts introduced by the integration
 - avoid rewriting unrelated project history or diagnostic notes
 
-### 6. Validate the integration
+### 7. Validate the integration
 
 Before finishing:
 
@@ -125,8 +139,9 @@ Unless the user explicitly asks for it, the default "add this repo" operation mu
 - copy `audit-template/`
 - copy `security-audit-template/security-audit-template.md`
 - copy `security-audit-template/security-audit-sast-addendum.md`
-- copy the security-audit installer scripts or other bundle files merely because `debug-tools-security-audit.md` is included
+- copy the security-audit installer scripts or other security-bundle files merely because `debug-tools-security-audit.md` is included
 - run either security-audit tool installer
+- treat the generic `tools/discover-debug-tools.ps1` helper as an installer; it is permitted only as non-mutating discovery
 - install global/system packages or developer tools
 - add or modify CI/CD workflows
 - enable strict required-tool gates
@@ -167,7 +182,7 @@ Add the security audit setup from this repo.
 Install the security audit bundle.
 ```
 
-Use the complete `security-audit-template/` bundle, preserving its internal file relationships. If the default integration already created `llm-wiki/debug-tools-security-audit.md`, merge/update it from the bundle rather than creating a duplicate. Do not run installers automatically unless the user requests tool installation or the target workflow explicitly requires it.
+Use the complete `security-audit-template/` bundle plus `common-tools/discover-debug-tools.ps1` and the generic entries from `common-tools/tool-paths.example.env`. Preserve their relationship: the Windows security installer delegates generic debugger/developer-tool path discovery to the shared helper. If the default integration already created `tools/discover-debug-tools.ps1` or `llm-wiki/debug-tools-security-audit.md`, merge/update them rather than creating duplicates. Do not run mutating installers automatically unless the user requests tool installation or the target workflow explicitly requires it.
 
 ### Full template import
 

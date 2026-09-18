@@ -45,7 +45,7 @@ SAST results are evidence, not proof of security. Findings must be triaged for r
 
 ## Windows installer default policy
 
-On Windows, `install-security-audit-tools.ps1` installs portable, low-side-effect scanners by default where possible:
+On Windows, `install-security-audit-tools.ps1` installs portable, low-side-effect security scanners by default where possible. Generic debugger/developer-tool path discovery is delegated to the shared non-mutating `tools/discover-debug-tools.ps1` helper:
 
 - `gitleaks`
 - `osv-scanner`
@@ -56,7 +56,7 @@ The following remain opt-in:
 - `trufflehog`, because it is deeper/heavier/noisier than `gitleaks`
 - `semgrep`, `flawfinder`, and `pip-audit`, because they use pipx/Python user installs and can mutate the user Python environment
 - language toolchain-native scanners such as `cargo-audit` and `govulncheck`, because they require existing Rust/Go toolchains
-- platform/runtime tools such as WinDbg, LLVM, FFmpeg, and GUI Sysinternals
+- platform/runtime tools such as WinDbg, LLVM, FFmpeg, and GUI Sysinternals; when present, their paths are recorded by the generic debug-tool manifest rather than security-specific discovery logic
 
 `bandit` is also useful for Python projects, but the current installer does not manage it. Use it when already available, or install it only with explicit authorization under the same Python-environment caution applied to other pip/pipx-based scanners.
 

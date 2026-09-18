@@ -19,12 +19,13 @@ In short:
 1. Inspect the target repository before copying anything.
 2. Integrate `llm-wiki-agents.md-template/AGENTS.md` as the project's root `AGENTS.md` baseline.
 3. Integrate `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` as `llm-wiki/debug-tools.md`.
-4. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
-5. Adapt all three files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
-6. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, or equivalent project knowledge.
-7. Preserve useful existing project-specific rules and diagnostics.
-8. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
-9. Do not run mutating tool installers merely as part of the default integration.
+4. Integrate `common-tools/discover-debug-tools.ps1` as `tools/discover-debug-tools.ps1` and merge `common-tools/tool-paths.example.env` into the project's generic path-override example.
+5. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
+6. Adapt the files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
+7. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, `tools/`, path-override examples, or equivalent project knowledge.
+8. Preserve useful existing project-specific rules and diagnostics.
+9. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
+10. Do not run mutating tool installers merely as part of the default integration. The generic discovery helper itself is non-mutating.
 
 `INSTALL.md` is authoritative if there is any ambiguity.
 
@@ -37,7 +38,10 @@ In short:
 | `security-audit-template/security-audit-template.md` | Detailed security/privacy audit with language-, platform-, runtime-, binary-, and tooling-specific coverage. |
 | `security-audit-template/security-audit-sast-addendum.md` | SAST, secrets, dependency scanning, and Linux/macOS tooling guidance. |
 | `security-audit-template/llm-wiki/debug-tools-security-audit.md` | Generic local security/debug/binary-analysis tool inventory to customize per project. Included in the default project integration. |
-| `security-audit-template/install-security-audit-tools.ps1` | Windows audit-tool detection/optional installation helper. |
+| `common-tools/README.md` | Shared debug/developer-tool discovery contract and path-source documentation. |
+| `common-tools/discover-debug-tools.ps1` | Non-mutating Windows debugger/developer-tool discovery; writes the generic `debug-tool-manifest.json`. |
+| `common-tools/tool-paths.example.env` | Generic debugger/developer-tool path overrides shared by normal and security workflows. |
+| `security-audit-template/install-security-audit-tools.ps1` | Windows security-audit tool installer that reuses generic debug-tool discovery. |
 | `security-audit-template/install-security-audit-tools.sh` | Linux/macOS audit-tool detection/optional installation helper. |
 | `llm-wiki-agents.md-template/AGENTS.md` | Generic project-level coding-agent instruction baseline. |
 | `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` | Generic project-local debugger/binary-tool inventory. |
@@ -52,7 +56,7 @@ For a new or existing project, the shortest intended request is simply:
 Add this to our project: https://github.com/aufkrawall/llm-prompt-templates
 ```
 
-An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, `llm-wiki/debug-tools.md`, and `llm-wiki/debug-tools-security-audit.md`, and avoid unrelated audit prompt/tool installation.
+An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, both `llm-wiki` tool inventories, and the non-mutating generic debug-tool discovery helper, while avoiding unrelated audit prompt/tool installation.
 
 ### General quality audit
 
@@ -69,7 +73,7 @@ The main template defaults to audit-only behavior and writes one audit report un
 
 ### Security audit
 
-For full intended coverage, copy the entire `security-audit-template/` bundle into or alongside the target repository rather than copying only the main prompt.
+For full intended coverage, copy the entire `security-audit-template/` bundle plus `common-tools/discover-debug-tools.ps1` and the generic entries from `common-tools/tool-paths.example.env`; the Windows security installer delegates generic debugger/developer path discovery to that shared helper.
 
 The main template can use:
 
@@ -77,11 +81,12 @@ The main template can use:
 security-audit-template.md
 security-audit-sast-addendum.md
 llm-wiki/debug-tools-security-audit.md
-tool-paths.env                    # optional local-only overrides
-security-audit-tool-manifest.json # optional generated evidence
+tool-paths.env                    # merged generic + security local-only overrides
+debug-tool-manifest.json           # generic debugger/developer-tool discovery evidence
+security-audit-tool-manifest.json  # security scanner/install evidence
 ```
 
-The installer/detector scripts are optional. Tool absence should be reported as an audit coverage/confidence limitation; it is not automatically a vulnerability in the audited product.
+The security installer/detector scripts are optional. Generic debugger/developer-tool paths come from `tools/discover-debug-tools.ps1` / `debug-tool-manifest.json`, not from security-specific discovery code. Tool absence should be reported as an audit coverage/confidence limitation; it is not automatically a vulnerability in the audited product.
 
 ### Agent instructions / llm-wiki
 

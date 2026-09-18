@@ -25,12 +25,15 @@ This file is guidance, not proof that a tool is installed, safe to run, or appro
 
 Use the first reliable source available:
 
-1. generated `security-audit-tool-manifest.json`
-2. local, uncommitted `tool-paths.env`
-3. repository-local or pinned tool locations
-4. shell discovery such as `Get-Command`, `where.exe`, or `command -v`
-5. documented project-specific known-good paths
-6. safe system defaults/fallbacks
+1. generated `debug-tool-manifest.json` for generic debugger/developer-tool paths
+2. generated `security-audit-tool-manifest.json` for security scanner/install evidence
+3. local, uncommitted `tool-paths.env`
+4. repository-local or pinned tool locations
+5. shell discovery such as `Get-Command`, `where.exe`, or `command -v`
+6. documented project-specific known-good paths
+7. safe system defaults/fallbacks
+
+On Windows, generic discovery belongs to `tools/discover-debug-tools.ps1` (source template: `common-tools/discover-debug-tools.ps1`). Security tooling should consume that helper/manifest rather than reimplementing Windows SDK or MSVC path generation.
 
 Example project path variables:
 
@@ -51,7 +54,7 @@ Do not assume any example path is valid until resolved in the current environmen
 
 ## Windows debugging and binary-analysis tools
 
-Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, `arm`, and `arm64`. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
+Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, `arm`, and `arm64`. The shared discovery helper derives standard candidates from `ProgramFiles(x86)` and `ProgramFiles`, while honoring architecture-specific `WINDOWS_SDK_DEBUGGERS_*` overrides first. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
 
 Common tools, when installed:
 
@@ -410,9 +413,24 @@ Do not include:
 
 ---
 
-## Installer-created paths and source-of-truth rule
+## Generated manifests and source-of-truth rule
 
-When `install-security-audit-tools.ps1` uses default settings, its managed root is typically:
+Generic debug/developer discovery is owned by `discover-debug-tools.ps1`. A standalone run normally writes:
+
+```text
+%LOCALAPPDATA%\LLMDebugTools\debug-tool-manifest.json
+```
+
+When `install-security-audit-tools.ps1` invokes the shared helper, it places the generic manifest beside the security evidence under its managed root:
+
+```text
+%LOCALAPPDATA%\SecurityAuditTools\debug-tool-manifest.json
+%LOCALAPPDATA%\SecurityAuditTools\security-audit-tool-manifest.json
+```
+
+The generic manifest is the source of truth for debugger/developer-tool paths; the security manifest is the source of truth for security-specific scanner/install evidence.
+
+The security installer managed root is typically:
 
 ```text
 %LOCALAPPDATA%\SecurityAuditTools

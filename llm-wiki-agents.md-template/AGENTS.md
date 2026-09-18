@@ -59,6 +59,7 @@ Keep these constraints specific enough to guide work, but avoid embedding stale 
 
 - Inspect available crash dumps, logs, traces, symbols, and produced artifacts when they are relevant to the reported failure.
 - Prefer project-documented debugger and symbol-path guidance from `llm-wiki/debug-tools.md` or equivalent local documentation.
+- When `tools/discover-debug-tools.ps1` exists on Windows, use its generated `debug-tool-manifest.json` as machine-specific evidence for debugger/developer-tool paths rather than duplicating SDK/MSVC path logic in task-specific scripts.
 - Verify tool availability before relying on documented paths. Treat hardcoded paths as examples unless the project explicitly declares them mandatory.
 - Do not mutate global debugger flags, system settings, binaries, symbols, registry state, or persistent environment state unless explicitly requested and justified.
 

@@ -16,6 +16,21 @@ This file is a reusable project-local tool inventory. Record tools and project-s
 - Do not mutate binaries, symbols, global debugger flags, registry/system settings, or persistent runtime configuration unless explicitly requested.
 - When a preferred tool is unavailable, use a safe equivalent when practical and record the resulting coverage limitation.
 
+## Tool/path resolution
+
+For Windows projects using the default integration, `tools/discover-debug-tools.ps1` is the shared non-mutating discovery helper. Its generic machine-local output is `debug-tool-manifest.json`.
+
+Use the first reliable source available:
+
+1. generated `debug-tool-manifest.json`
+2. local, uncommitted `tool-paths.env`
+3. repository-local or pinned tool locations
+4. shell discovery such as `Get-Command`, `where.exe`, or `command -v`
+5. documented project-specific known-good paths
+6. safe system defaults/fallbacks
+
+The helper must not install packages, download tools, edit PATH, or mutate debugger/system state. If it is unavailable, use the remaining discovery sources directly.
+
 ## Project path variables
 
 Projects may define equivalent variables in a local, uncommitted environment file:
@@ -28,13 +43,23 @@ SYMBOL_ROOT=
 LOG_ROOT=
 DUMP_ROOT=
 CAPTURE_ROOT=
+WINDOWS_SDK_DEBUGGERS_X86=
+WINDOWS_SDK_DEBUGGERS_X64=
+WINDOWS_SDK_DEBUGGERS_ARM=
+WINDOWS_SDK_DEBUGGERS_ARM64=
+MSVC_TOOLS_X86=
+MSVC_TOOLS_X64=
+MSVC_TOOLS_ARM64=
+SYSINTERNALS_ROOT=
+LLVM_ROOT=
+FFMPEG_ROOT=
 ```
 
-Use project-specific names if the repository already has established conventions.
+The reusable example lives at `common-tools/tool-paths.example.env` and is installed/merged into the target project's root path-override example. Use project-specific names if the repository already has established conventions.
 
 ## Windows debugging and binary analysis
 
-Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, `arm`, and `arm64`. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
+Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, `arm`, and `arm64`. The shared discovery helper generates candidates from `ProgramFiles(x86)` and `ProgramFiles`, preferring any matching `WINDOWS_SDK_DEBUGGERS_*` override first and falling back to PATH. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
 
 Common tools, when installed:
 
