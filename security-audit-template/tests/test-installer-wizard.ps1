@@ -23,6 +23,7 @@ if ($parseErrors -and $parseErrors.Count -gt 0) {
 
 foreach ($required in @(
   "function Invoke-InstallerWizard",
+  "function Set-MinimalInstallSelection",
   "Full install (default; all supported tools including large packages)",
   "Proceed with the FULL installation?",
   '[switch]$IncludeWindowsSdkDebuggers',
@@ -79,6 +80,10 @@ if (-not $content.Contains('if ($Wizard -or $PSBoundParameters.Count -eq 0)')) {
 
 if (-not $content.Contains('0 { Set-FullInstallSelection }')) {
   throw "Default wizard mode should select Full without extra configuration prompts before the final confirmation."
+}
+
+if (-not $content.Contains('Set-MinimalInstallSelection')) {
+  throw "Minimal wizard mode must reset incoming include flags."
 }
 
 Write-Host "Security installer wizard/full-install regression checks passed."
