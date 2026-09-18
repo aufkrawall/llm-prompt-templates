@@ -61,6 +61,9 @@ $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSO
 $originalLocalAppData = [Environment]::GetEnvironmentVariable("LOCALAPPDATA", "Process")
 $overrideFile = $null
 $vsRoot = $null
+$rootA = $null
+$rootB = $null
+$testLocalAppData = $null
 
 try {
   $script:Warnings = [System.Collections.Generic.List[string]]::new()
