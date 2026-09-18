@@ -51,7 +51,7 @@ Do not assume any example path is valid until resolved in the current environmen
 
 ## Windows debugging and binary-analysis tools
 
-Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, and `arm64`. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
+Windows SDK Debugging Tools commonly live in architecture-specific subdirectories under `Windows Kits\10\Debuggers`, including `x64`, `x86`, `arm`, and `arm64`. Discover the variants relevant to the host and target instead of assuming x64, and record the resolved debugger architecture when it can affect live or remote debugging behavior.
 
 Common tools, when installed:
 
