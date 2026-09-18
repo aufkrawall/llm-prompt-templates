@@ -1063,11 +1063,16 @@ function Invoke-SafeDownload {
     [string]$Uri,
     [string]$OutFile,
     [string]$ExpectedPublisherRegex = "",
-    [switch]$RequireValidSignature
+    [switch]$RequireValidSignature,
+    [switch]$RefreshExisting
   )
 
   $parent = Split-Path -Parent $OutFile
   Ensure-Dir $parent
+
+  if ($RefreshExisting -and (Test-Path -LiteralPath $OutFile) -and -not $WhatIfOnly) {
+    Remove-Item -LiteralPath $OutFile -Force -ErrorAction Stop
+  }
 
   if (Test-Path -LiteralPath $OutFile) {
     Write-Host "Already present: $OutFile"
@@ -1202,6 +1207,158 @@ function Install-WithWinget {
 
   Add-WarningMessage "winget install failed for $Name ($PackageId), exit code $exit"
   Add-Result -Name $Name -Category "winget" -Status "install-failed" -Source "winget:$PackageId" -Notes "ExitCode=$exit; $Reason"
+}
+
+function Test-IsAdministrator {
+  try {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch {
+    return $false
+  }
+}
+
+function Invoke-ElevatedInstallerProcess {
+  param(
+    [string]$Name,
+    [string]$FilePath,
+    [string[]]$ArgumentList,
+    [string]$Category,
+    [string]$Source
+  )
+
+  if ($WhatIfOnly) {
+    Write-Host ("Would run installer: {0} {1}" -f $FilePath, ($ArgumentList -join " "))
+    Add-Result -Name $Name -Category $Category -Status "planned" -Path $FilePath -Source $Source -Notes "WhatIfOnly"
+    return
+  }
+
+  try {
+    $startArgs = @{
+      FilePath = $FilePath
+      ArgumentList = $ArgumentList
+      Wait = $true
+      PassThru = $true
+    }
+    if (-not (Test-IsAdministrator)) {
+      Write-Host "$Name requires administrative elevation; Windows may show a UAC prompt." -ForegroundColor Yellow
+      $startArgs.Verb = "RunAs"
+    }
+
+    $process = Start-Process @startArgs
+    $exitCode = $process.ExitCode
+    if ($exitCode -eq 0 -or $exitCode -eq 3010) {
+      $notes = "Installer exit code $exitCode"
+      if ($exitCode -eq 3010) { $notes += "; reboot required" }
+      Add-Result -Name $Name -Category $Category -Status "installed-or-present" -Path $FilePath -Source $Source -Notes $notes
+      return
+    }
+
+    Add-WarningMessage "$Name installer failed with exit code $exitCode."
+    Add-Result -Name $Name -Category $Category -Status "install-failed" -Path $FilePath -Source $Source -Notes "ExitCode=$exitCode"
+  } catch {
+    Add-WarningMessage "$Name installer could not be started or completed: $($_.Exception.Message)"
+    Add-Result -Name $Name -Category $Category -Status "install-failed" -Path $FilePath -Source $Source -Notes $_.Exception.Message
+  }
+}
+
+function Install-WindowsSdkDebuggingTools {
+  $installerDir = Join-Path $BinRoot "installers"
+  $installer = Join-Path $installerDir "winsdksetup.exe"
+  $source = "https://go.microsoft.com/fwlink/?linkid=2376217"
+
+  if ($WhatIfOnly) {
+    Invoke-SafeDownload -Name "winsdksetup.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "planned" -Path $installer -Source $source -Notes "Feature=OptionId.WindowsDesktopDebuggers"
+    return
+  }
+
+  try {
+    Invoke-SafeDownload -Name "winsdksetup.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+  } catch {
+    Add-WarningMessage "Windows SDK bootstrapper download failed: $($_.Exception.Message)"
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "install-failed" -Source $source -Notes $_.Exception.Message
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $installer)) {
+    Add-WarningMessage "Windows SDK bootstrapper was not available after download."
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "install-failed" -Source $source
+    return
+  }
+
+  $signature = Get-FileSignatureSummary -Path $installer -ExpectedPublisherRegex "Microsoft"
+  if ($signature -notlike "Valid;*") {
+    Add-WarningMessage "Windows SDK bootstrapper signature validation failed; refusing to execute it. Signature: $signature"
+    Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "signature-warning" -Path $installer -Source $source -SignatureStatus $signature
+    return
+  }
+
+  Invoke-ElevatedInstallerProcess -Name "Windows SDK Debugging Tools" -FilePath $installer -ArgumentList @("/features", "OptionId.WindowsDesktopDebuggers", "/quiet", "/norestart") -Category "large toolchain install" -Source $source
+}
+
+function Test-VisualStudioVCToolsInstalled {
+  param([string]$VSWherePath)
+  if (-not $VSWherePath -or -not (Test-Path -LiteralPath $VSWherePath)) { return $false }
+  try {
+    $installPath = & $VSWherePath -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    return [bool]$installPath
+  } catch {
+    return $false
+  }
+}
+
+function Install-VisualStudioBuildTools {
+  param([string]$VSWherePath)
+
+  if (Test-VisualStudioVCToolsInstalled -VSWherePath $VSWherePath) {
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "already-installed" -Source "vswhere" -Notes "Microsoft.VisualStudio.Component.VC.Tools.x86.x64 is already available."
+    return
+  }
+
+  $installerDir = Join-Path $BinRoot "installers"
+  $installer = Join-Path $installerDir "vs_buildtools.exe"
+  $source = "https://aka.ms/vs/stable/vs_buildtools.exe"
+
+  if ($WhatIfOnly) {
+    Invoke-SafeDownload -Name "vs_buildtools.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "planned" -Path $installer -Source $source -Notes "Microsoft.VisualStudio.Workload.VCTools; includeRecommended; includeOptional"
+    return
+  }
+
+  try {
+    Invoke-SafeDownload -Name "vs_buildtools.exe" -Uri $source -OutFile $installer -ExpectedPublisherRegex "Microsoft" -RequireValidSignature -RefreshExisting
+  } catch {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper download failed: $($_.Exception.Message)"
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "install-failed" -Source $source -Notes $_.Exception.Message
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $installer)) {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper was not available after download."
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "install-failed" -Source $source
+    return
+  }
+
+  $signature = Get-FileSignatureSummary -Path $installer -ExpectedPublisherRegex "Microsoft"
+  if ($signature -notlike "Valid;*") {
+    Add-WarningMessage "Visual Studio Build Tools bootstrapper signature validation failed; refusing to execute it. Signature: $signature"
+    Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "signature-warning" -Path $installer -Source $source -SignatureStatus $signature
+    return
+  }
+
+  $arguments = @(
+    "--passive",
+    "--wait",
+    "--norestart",
+    "--nocache",
+    "--add",
+    "Microsoft.VisualStudio.Workload.VCTools",
+    "--includeRecommended",
+    "--includeOptional"
+  )
+  Invoke-ElevatedInstallerProcess -Name "Visual Studio Build Tools C++ workload" -FilePath $installer -ArgumentList $arguments -Category "large toolchain install" -Source $source
 }
 
 function Resolve-DebugToolDiscoveryScript {
@@ -1363,18 +1520,31 @@ if (-not $vswherePath -or -not (Test-Path -LiteralPath $vswherePath)) {
   $vswherePath = Test-CommandPath "vswhere.exe"
 }
 
+# Large native/debug toolchains.
+if ($IncludeVisualStudioBuildTools) {
+  Install-VisualStudioBuildTools -VSWherePath $vswherePath
+} else {
+  Add-Result -Name "Visual Studio Build Tools C++ workload" -Category "large toolchain install" -Status "skipped-not-requested"
+}
+
+if ($IncludeWindowsSdkDebuggers) {
+  Install-WindowsSdkDebuggingTools
+} else {
+  Add-Result -Name "Windows SDK Debugging Tools" -Category "large toolchain install" -Status "skipped-not-requested"
+}
+
 # Optional WinDbg Preview.
 if ($IncludeWinDbg) {
   Install-WithWinget -Name "WinDbg Preview" -PackageId "Microsoft.WinDbg" -Reason "Official Microsoft debugger; not portable"
 } else {
-  Add-WarningMessage "WinDbg Preview was not installed by default. Use -IncludeWinDbg if crash dump debugging is needed and Windows SDK Debugging Tools are unavailable."
+  Add-Result -Name "WinDbg Preview" -Category "winget" -Status "skipped-not-requested"
 }
 
 # Optional LLVM.
 if ($IncludeLLVMViaWinget) {
   Install-WithWinget -Name "LLVM" -PackageId "LLVM.LLVM" -Reason "Provides llvm-strings/llvm-objdump; larger non-portable package"
 } else {
-  Add-WarningMessage "LLVM was not installed by default. Use -IncludeLLVMViaWinget if llvm-strings or llvm-objdump is needed."
+  Add-Result -Name "LLVM" -Category "winget" -Status "skipped-not-requested"
 }
 
 # Optional FFmpeg build.
@@ -1399,9 +1569,9 @@ if ($IncludeFFmpeg) {
     }
   }
 
-  Add-WarningMessage "FFmpeg Windows binary was downloaded from an opt-in third-party build source. Record hash and source in audit evidence."
+  Write-Host "NOTE: FFmpeg Windows binary came from the configured third-party build source; source/hash are recorded in evidence."
 } else {
-  Add-WarningMessage "FFmpeg/ffprobe were not installed by default. Use -IncludeFFmpeg only when capture/media inspection is needed."
+  Add-Result -Name "FFmpeg" -Category "media/capture" -Status "skipped-not-requested"
 }
 
 # Add portable dirs to PATH if requested.
