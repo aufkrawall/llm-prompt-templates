@@ -36,7 +36,8 @@ foreach ($functionName in @(
   "Get-WindowsSdkDebuggerCandidatePaths",
   "Get-MsvcBinaryToolArchitecturePreferences",
   "Get-MsvcOverrideKeys",
-  "Select-PreferredMsvcToolMatch"
+  "Select-PreferredMsvcToolMatch",
+  "Resolve-MsvcTool"
 )) {
   $functionAst = $ast.Find(
     {
@@ -54,6 +55,7 @@ $originalProgramFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "P
 $originalProgramFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")
 $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE", "Process")
 $overrideFile = $null
+$vsRoot = $null
 
 try {
   $script:Warnings = [System.Collections.Generic.List[string]]::new()
@@ -112,12 +114,54 @@ try {
   if ($preferred.FullName -notlike "*\Hostx64\x64\dumpbin.exe") {
     throw "AMD64 MSVC preference did not select Hostx64\x64."
   }
+
+  # Exercise Resolve-MsvcTool through its regex filter. PowerShell's automatic
+  # $Matches variable is case-insensitive and must not collide with the accumulator.
+  $vsRoot = Join-Path $ProjectRoot "llm-template-test-vs"
+  $toolDir = Join-Path $vsRoot "VC\Tools\MSVC\14.0\bin\Hostx64\x64"
+  New-Item -ItemType Directory -Path $toolDir -Force | Out-Null
+  $expectedMsvcPath = Join-Path $toolDir "dumpbin.exe"
+  Set-Content -LiteralPath $expectedMsvcPath -Value "" -Encoding ASCII
+
+  function Get-OverrideValue { param([string]$Name) return $null }
+  function Find-ToolInRoots { param([string]$ToolName, [string[]]$Roots, [switch]$Recurse) return $null }
+  function Get-VisualStudioRoots { return @($vsRoot) }
+  function Get-CommandPath { param([string]$Name) return $null }
+  $script:CapturedResults = [System.Collections.Generic.List[object]]::new()
+  function Add-Result {
+    param(
+      [string]$Name,
+      [string]$Category,
+      [string]$Status,
+      [string]$Path = "",
+      [string]$Source = "",
+      [string]$Notes = ""
+    )
+    $script:CapturedResults.Add([pscustomobject]@{
+      name = $Name
+      category = $Category
+      status = $Status
+      path = $Path
+      source = $Source
+      notes = $Notes
+    }) | Out-Null
+  }
+  $AdditionalToolRoots = @()
+
+  Resolve-MsvcTool -ToolName "dumpbin.exe"
+  $resolvedMsvc = $script:CapturedResults | Where-Object { $_.name -eq "dumpbin.exe" } | Select-Object -Last 1
+  if (-not $resolvedMsvc -or $resolvedMsvc.path -ne $expectedMsvcPath -or $resolvedMsvc.source -ne "Visual Studio discovery") {
+    throw "Resolve-MsvcTool did not survive regex matching and select the expected MSVC binary."
+  }
 } finally {
   [Environment]::SetEnvironmentVariable("ProgramFiles", $originalProgramFiles, "Process")
   [Environment]::SetEnvironmentVariable("ProgramFiles(x86)", $originalProgramFilesX86, "Process")
   [Environment]::SetEnvironmentVariable("PROCESSOR_ARCHITECTURE", $originalProcessorArchitecture, "Process")
   if ($overrideFile -and (Test-Path -LiteralPath $overrideFile)) {
     Remove-Item -LiteralPath $overrideFile -Force -ErrorAction SilentlyContinue
+  }
+  if ($vsRoot -and (Test-Path -LiteralPath $vsRoot)) {
+    Remove-Item -LiteralPath $vsRoot -Recurse -Force -ErrorAction SilentlyContinue
   }
 }
 
