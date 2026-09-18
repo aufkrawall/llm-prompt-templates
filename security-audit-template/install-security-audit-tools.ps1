@@ -51,28 +51,28 @@
   This is not enabled by default because those packages may be used outside this audit tooling.
 
 .PARAMETER Minimal
-  Conservative mode. Do not install default portable scanners; detect only unless explicit Include* switches are provided.
+  Detection-focused mode. Do not perform the normal default portable scanner installs unless explicit Include* switches are provided.
 
 .PARAMETER SkipSastInstall
-  Skip default SAST installation attempts. Currently Python/pip-based SAST is not installed by default, so this mainly affects future portable SAST defaults.
+  Skip managed SAST installation attempts for this run, including Python/pip-based SAST selected by Full mode.
 
 .PARAMETER SkipSecretsInstall
-  Skip default gitleaks installation.
+  Skip managed secrets-scanner installation attempts for this run.
 
 .PARAMETER SkipDependencyScannerInstall
-  Skip default osv-scanner and pip-audit installation attempts.
+  Skip managed dependency-scanner installation attempts for this run.
 
 .PARAMETER IncludeSast
-  Explicitly install semgrep and flawfinder where possible. These use pipx or Python user installs and are opt-in.
+  Select semgrep and flawfinder installation where possible. Full mode selects this automatically.
 
 .PARAMETER IncludePythonSast
-  Alias-style group switch for Python/pip-based SAST/dependency tools: semgrep, flawfinder, and pip-audit.
+  Group switch for Python/pip-based SAST/dependency tools: semgrep, flawfinder, and pip-audit. Full mode selects this automatically.
 
 .PARAMETER IncludeSecrets
-  Explicitly install secrets scanners. gitleaks is already installed by default unless -Minimal or -SkipSecretsInstall is used; trufflehog remains opt-in because it is heavier/noisier.
+  Select supported secrets scanners. Full mode selects this automatically.
 
 .PARAMETER IncludeDependencyScanners
-  Explicitly install dependency scanners. osv-scanner is installed by default unless -Minimal or -SkipDependencyScannerInstall is used; pip-audit is Python/pip-based and remains opt-in unless requested.
+  Select supported dependency scanners. Full mode selects this automatically.
 
 .PARAMETER IncludeSemgrep
   Install semgrep with pipx or Python user install where possible.
@@ -93,7 +93,7 @@
   Install pip-audit with pipx or Python user install where possible.
 
 .PARAMETER IncludeCodeQL
-  Download the CodeQL bundle from the official GitHub CodeQL release. This is large and opt-in.
+  Download the CodeQL bundle from the official GitHub CodeQL release. Full mode selects this automatically; it remains individually selectable in custom/CLI runs.
 
 .PARAMETER RequireTools
   Tool names that must be available for the intended audit. Use with -StrictRequiredTools to fail if missing.
@@ -119,11 +119,11 @@
 
 .PARAMETER IncludeFFmpeg
   Download and extract ffmpeg-release-essentials.zip from gyan.dev.
-  FFmpeg upstream provides source only and links to third-party Windows builds; this is opt-in.
+  FFmpeg upstream provides source only and links to third-party Windows builds. Full mode selects this automatically.
 
 .PARAMETER IncludeLLVMViaWinget
   Install LLVM using winget package LLVM.LLVM.
-  This is larger and not portable, so it is opt-in.
+  This is larger and not portable. Full mode selects this automatically.
 
 .PARAMETER SkipVSWhere
   Skip downloading portable vswhere.exe from the official microsoft/vswhere GitHub release.
@@ -802,13 +802,13 @@ function Install-OptionalSastTools {
     Add-WarningMessage "Minimal mode is enabled. Default portable scanner installation is disabled; detection still runs."
   }
   if ($SkipSecretsInstall) {
-    Add-WarningMessage "Default gitleaks installation was skipped by -SkipSecretsInstall."
+    Add-WarningMessage "Secrets-scanner installation was skipped by -SkipSecretsInstall."
   }
   if ($SkipDependencyScannerInstall) {
-    Add-WarningMessage "Default osv-scanner installation was skipped by -SkipDependencyScannerInstall."
+    Add-WarningMessage "Dependency-scanner installation was skipped by -SkipDependencyScannerInstall."
   }
   if (-not $installSemgrep -and -not $installFlawfinder -and -not $installPipAudit) {
-    Add-WarningMessage "Python/pip-based tools semgrep, flawfinder, and pip-audit are not installed by default. Use -IncludePythonSast, -IncludeSast, -IncludeSemgrep, -IncludeFlawfinder, or -IncludePipAudit if you accept user-Python environment changes."
+    Add-Result -Name "Python SAST/dependency tools" -Category "Python-based SAST/dependency install" -Status "skipped-not-requested" -Notes "semgrep/flawfinder/pip-audit were not selected for this run."
   }
 
   if ($installGitleaks) {
@@ -1485,7 +1485,7 @@ if (-not $SkipSysinternals) {
   if ($IncludeGuiSysinternals) {
     $coreTools += @("Procmon.exe", "procexp.exe")
   } else {
-    Add-WarningMessage "GUI Sysinternals tools procmon.exe and procexp.exe were not downloaded by default. Use -IncludeGuiSysinternals if runtime tracing/process inspection is needed."
+    Add-Result -Name "GUI Sysinternals" -Category "Sysinternals" -Status "skipped-not-requested" -Notes "Procmon.exe and procexp.exe were not selected for this run."
   }
 
   foreach ($tool in $coreTools | Select-Object -Unique) {
@@ -1509,6 +1509,7 @@ if (-not $SkipVSWhere) {
     -RequireValidSignature
 } else {
   Add-WarningMessage "vswhere download was skipped. MSVC tool discovery may be less reliable."
+  Add-Result -Name "vswhere.exe" -Category "Visual Studio discovery" -Status "skipped-not-requested"
 }
 
 if (-not $vswherePath -or -not (Test-Path -LiteralPath $vswherePath)) {
