@@ -38,6 +38,7 @@ In short:
 | `security-audit-template/security-audit-template.md` | Detailed security/privacy audit with language-, platform-, runtime-, binary-, and tooling-specific coverage. |
 | `security-audit-template/security-audit-sast-addendum.md` | SAST, secrets, dependency scanning, and Linux/macOS tooling guidance. |
 | `security-audit-template/llm-wiki/debug-tools-security-audit.md` | Generic local security/debug/binary-analysis tool inventory to customize per project. Included in the default project integration. |
+| `common-tools/README.md` | Shared debug/developer-tool discovery contract and path-source documentation. |
 | `common-tools/discover-debug-tools.ps1` | Non-mutating Windows debugger/developer-tool discovery; writes the generic `debug-tool-manifest.json`. |
 | `common-tools/tool-paths.example.env` | Generic debugger/developer-tool path overrides shared by normal and security workflows. |
 | `security-audit-template/install-security-audit-tools.ps1` | Windows security-audit tool installer that reuses generic debug-tool discovery. |
