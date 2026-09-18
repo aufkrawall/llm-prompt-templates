@@ -5,25 +5,34 @@ Copyright (c) 2026 aufkrawall
 
 # Security audit template and tooling bundle
 
-This bundle uses the intended layout with no version markers in filenames:
+The security bundle uses the files below plus the shared generic discovery helper from `../common-tools/`:
 
 ```text
 security-audit-template.md
 security-audit-sast-addendum.md
 install-security-audit-tools.ps1
 install-security-audit-tools.sh
-tool-paths.example.env
+tool-paths.example.env            # security-specific additions
 security-audit-tools-installer-README.md
 llm-wiki/
   debug-tools-security-audit.md
+
+../common-tools/
+  discover-debug-tools.ps1
+  tool-paths.example.env          # generic debugger/developer overrides
 ```
+
+In an integrated project, place the shared helper at `tools/discover-debug-tools.ps1` and merge the generic + security path-variable examples into the root `tool-paths.example.env`.
 
 Only `debug-tools-security-audit.md` is placed under `llm-wiki/`.
 
-Optional local-only files include:
+Optional local-only/generated files include:
 
 ```text
 tool-paths.env
+debug-tool-manifest.json
+debug-tool-warnings.txt
+debug-tool-availability.md
 security-audit-tool-manifest.json
 security-audit-tool-warnings.txt
 security-audit-tool-availability.md
@@ -41,6 +50,7 @@ llm-wiki/debug-tools.md
 security-audit-sast-addendum.md
 tool-paths.env
 tool-paths.example.env
+tools/discover-debug-tools.ps1
 install-security-audit-tools.ps1
 install-security-audit-tools.sh
 ```
@@ -66,7 +76,7 @@ Use from the project root:
 .\install-security-audit-tools.ps1
 ```
 
-Conservative default: install or discover small, low-side-effect audit tools where supported and detect larger or more invasive tools without installing them.
+Conservative default: install/detect security-audit tools where supported, then invoke the shared non-mutating `tools/discover-debug-tools.ps1` helper for generic debugger/developer-tool paths.
 
 ## Linux/macOS script
 
@@ -97,13 +107,18 @@ For tool resolution, it checks the current `PATH` plus the script-managed `$INST
 
 ## Evidence files
 
-The scripts may write evidence such as:
+The Windows workflow writes separate generic and security evidence:
 
 ```text
+debug-tool-manifest.json
+debug-tool-warnings.txt
+debug-tool-availability.md
 security-audit-tool-manifest.json
 security-audit-tool-warnings.txt
 security-audit-tool-availability.md
 ```
+
+The generic manifest owns debugger/developer-tool paths. The security manifest owns security-specific scanner/install evidence. The Linux/macOS security script continues to use its security-audit manifest for its own detection results.
 
 Audit reports should carry forward material warnings and reflect them in coverage/confidence notes.
 
@@ -117,11 +132,14 @@ The default PowerShell installer root is:
 %LOCALAPPDATA%\SecurityAuditTools
 ```
 
-The generated manifest is the first source of truth when present:
+When the Windows security installer runs, it places both manifests under its managed root:
 
 ```text
+%LOCALAPPDATA%\SecurityAuditTools\debug-tool-manifest.json
 %LOCALAPPDATA%\SecurityAuditTools\security-audit-tool-manifest.json
 ```
+
+Use `debug-tool-manifest.json` for generic debugger/developer paths and `security-audit-tool-manifest.json` for security-specific tools.
 
 Default portable Sysinternals tools are installed under:
 
@@ -135,12 +153,18 @@ Default portable Sysinternals tools are installed under:
 %LOCALAPPDATA%\SecurityAuditTools\bin\vswhere
 ```
 
-Windows SDK Debugging Tools and MSVC tools are detected but are not installed by default. Detection considers x86, x64, ARM, and ARM64 debugger variants plus x86/x64/ARM64 MSVC tool variants and prefers host-appropriate executables when multiple MSVC variants are present.
+Windows SDK Debugging Tools and MSVC tools are not installed by default. Their paths are discovered by the shared `discover-debug-tools.ps1` helper, which handles x86, x64, ARM, and ARM64 SDK debugger roots plus x86/x64/ARM64 MSVC host/target layouts.
 
-A dependency-free regression check for this discovery logic is available at:
+The generic discovery regression check lives with the shared helper:
 
 ```powershell
-.\tests\test-windows-tool-architecture-discovery.ps1
+.\common-tools\tests\test-debug-tool-discovery.ps1
+```
+
+The security installer also has a regression check that ensures generic path-generation logic is not duplicated back into the security script:
+
+```powershell
+.\security-audit-template\tests\test-generic-debug-discovery-integration.ps1
 ```
 
 ## Project-specific diagnostics
@@ -233,12 +257,13 @@ After running an installer/detector, use the generated manifest first. Do not as
 
 Recommended resolution order:
 
-1. generated `security-audit-tool-manifest.json`
-2. local `tool-paths.env`
-3. repository-local/pinned tool locations
-4. script-managed/local user tool roots and `Get-Command`, `where.exe`, `command -v`, or equivalent discovery
-5. documented project-specific known-good paths
-6. safe fallbacks
+1. generated `debug-tool-manifest.json` for generic debugger/developer tools
+2. generated `security-audit-tool-manifest.json` for security-specific tools
+3. local `tool-paths.env`
+4. repository-local/pinned tool locations
+5. script-managed/local user tool roots and `Get-Command`, `where.exe`, `command -v`, or equivalent discovery
+6. documented project-specific known-good paths
+7. safe fallbacks
 
 ## Strict required-tool gate
 
