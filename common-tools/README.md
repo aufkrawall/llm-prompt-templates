@@ -59,7 +59,7 @@ The normal `results` array remains backward-compatible and records the preferred
 
 MSVC tools use `MSVC_TOOLS_X86`, `MSVC_TOOLS_X64`, and `MSVC_TOOLS_ARM64` overrides first, then additional local roots, Visual Studio/vswhere discovery, and finally PATH. Host/target variants are preferred according to the current processor architecture.
 
-LLVM, Sysinternals, and FFmpeg can be rooted with `LLVM_ROOT`, `SYSINTERNALS_ROOT`, and `FFMPEG_ROOT`. Additional managed roots supplied by a caller are searched before ordinary PATH fallback. When `%LOCALAPPDATA%\SecurityAuditTools\bin` exists, standalone discovery also adds it automatically, so tools installed by the security-audit installer (for example its managed FFmpeg build) remain discoverable without manually passing `-AdditionalToolRoots`.
+LLVM, Sysinternals, and FFmpeg can be rooted with `LLVM_ROOT`, `SYSINTERNALS_ROOT`, and `FFMPEG_ROOT`. Additional managed roots supplied by a caller are searched before ordinary PATH fallback. Standalone discovery also adds existing managed `sysinternals`, `ffmpeg`, and `vswhere` subdirectories under `%LOCALAPPDATA%\SecurityAuditTools\bin` automatically, so those installer-managed tools remain discoverable without manually passing `-AdditionalToolRoots` while avoiding recursive scans of unrelated large bundles.
 
 ## Local overrides
 
