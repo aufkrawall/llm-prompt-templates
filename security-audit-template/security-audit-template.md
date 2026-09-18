@@ -88,9 +88,9 @@ Before generic tool assumptions, inspect relevant repository-local audit guidanc
 5. `tool-paths.env` / documented path overrides
 6. repository-provided discovery or audit scripts
 
-Treat these files as guidance and path evidence, not proof that a tool or artifact is usable. Resolve tools from generated manifests first, then local overrides, shell/PATH discovery, documented paths, and safe fallbacks. Never guess paths.
+Treat these files as guidance and path evidence, not proof that a tool or artifact is usable. Resolve tools from generated manifests first, then local overrides, shell/PATH discovery, documented paths, and safe fallbacks. When a manifest records a tool path, use that exact path unless newer verified evidence supersedes it. Treat hardcoded documentation paths as examples unless explicitly mandatory. Never guess paths. If local guidance contains a `Security audit additions` section, apply it when relevant.
 
-Verify relevant tools and inputs before relying on them. If a documented path variable is unset, try documented relative discovery before warning. Missing tools, targets, binaries, dumps, symbols, logs, or other evidence are coverage limitations, not vulnerabilities by themselves; use a safe fallback when available, otherwise mark the evidence unavailable and lower only affected confidence/readiness or scores. Do not silently skip relevant project-documented tools or inputs. Surface material gaps in the Executive Summary, affected scorecard/finding notes, Production-Readiness Assessment, and Final Verification Checklist.
+Verify relevant tools and inputs before relying on them. If a documented path variable is unset, try documented relative discovery before warning. Missing tools, targets, binaries, dumps, symbols, logs, or other evidence are coverage limitations, not vulnerabilities by themselves; use a safe fallback when available, otherwise mark the evidence unavailable and lower only affected confidence/readiness or scores. Do not silently skip relevant project-documented tools or inputs. Surface material gaps in the Executive Summary, affected scorecard/finding notes, Production-Readiness Assessment, and Final Verification Checklist. For each material gap state what was unavailable, why it mattered, fallback used, evidence lost, and which scores/confidence were affected.
 
 Do not mutate global debugger/runtime/system state, install large or global tooling, upload source or sensitive artifacts, or run intrusive diagnostics unless explicitly authorized. Repository installers/detectors are optional; if used, verify their resulting manifests rather than assuming installation succeeded.
 
@@ -506,7 +506,7 @@ Verdict values: **Ready to ship / Ready to ship with minor fixes / Not ready to 
 
 # 2. Security Scorecard
 
-Score each applicable category 0–10 using integers or one decimal place. Use `N/A` only when genuinely inapplicable. If an applicable area is incompletely assessed, score the observed state and lower confidence rather than treating missing evidence as a pass. High scores require concrete evidence.
+Score each applicable category 0–10 using integers or one decimal place. Use `N/A` only when genuinely inapplicable. If an applicable area is incompletely assessed, score the observed state and lower confidence rather than treating missing evidence as a pass. High scores require concrete evidence. In particular, lower affected confidence/scores when central business-logic/authorization review, parser/fuzz coverage, required release-binary inspection, or supported platform/architecture evidence is missing.
 
 | Category | Weight | Score | Confidence | Notes |
 |---|---:|---:|---|---|
@@ -584,6 +584,8 @@ For later fixes:
 - keep refactors tied to a selected finding or material security-risk reduction
 - preserve useful diagnostics and generated-binary hardening; keep suppressions narrow and justified
 - validate each fix with the original reproducer or abuse case and focused automated regression tests when practical
+- measure performance-sensitive fixes when they affect hot paths, startup/shutdown, networking/parsing/storage/concurrency, resource use, binary size, or energy use
+- if temporary feature disablement is used as an emergency mitigation, document its scope, rollback plan, owner, follow-up fix, and user-visible impact
 - recheck affected unsafe/native/FFI, parser, concurrency, privilege, auth, tenancy, dynamic-loading, and other high-blast-radius boundaries
 
 # 7. Final Verification Checklist
