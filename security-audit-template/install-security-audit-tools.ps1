@@ -43,8 +43,9 @@
   Remove script-managed portable tools and evidence under InstallRoot, then exit.
 
 .PARAMETER RemoveSharedPackages
-  With -Uninstall, also attempt to remove package-manager/shared installs the script can create, such as WinDbg and LLVM.
-  This is not enabled by default because those packages may have existed before this script was run.
+  With -Uninstall, also attempt to remove supported package-manager/shared installs such as WinDbg and LLVM.
+  Visual Studio Build Tools and Windows SDK components are deliberately not auto-removed because they may be shared by other developer workflows.
+  This is not enabled by default because shared packages may have existed before this script was run.
 
 .PARAMETER RemovePythonPackages
   With -Uninstall, also attempt to uninstall Python/pipx packages the script can install, such as semgrep, flawfinder, and pip-audit.
@@ -1665,6 +1666,14 @@ function Write-CompletionSummary {
 }
 
 $finalUnavailableResults = @(Get-FinalUnavailableResults)
+$finalFailureResults = @(
+  $finalUnavailableResults |
+    Where-Object {
+      $status = [string]$_.status
+      $status -ne "skipped-not-requested" -and
+      ($status -ne "missing" -or $Full)
+    }
+)
 
 # Write outputs.
 $manifest = [pscustomobject]@{
@@ -1682,6 +1691,7 @@ $manifest = [pscustomobject]@{
   include_windows_sdk_debuggers = [bool]$IncludeWindowsSdkDebuggers
   include_visual_studio_build_tools = [bool]$IncludeVisualStudioBuildTools
   unavailable_results = $finalUnavailableResults
+  failure_results = $finalFailureResults
   default_python_sast_install = [bool]$IncludePythonSast
   default_secrets_install = [bool]((-not $Minimal) -and (-not $SkipSecretsInstall))
   default_dependency_scanner_install = [bool]((-not $Minimal) -and (-not $SkipDependencyScannerInstall))
@@ -1744,9 +1754,9 @@ if ($StrictRequiredTools -and $script:RequiredToolMissing) {
   exit 3
 }
 
-if ($script:Warnings.Count -gt 0 -or $finalUnavailableResults.Count -gt 0) {
+if ($script:Warnings.Count -gt 0 -or $finalFailureResults.Count -gt 0) {
   Write-Host ""
-  Write-Host "Completed with unavailable/skipped tools or warnings; see the summary above." -ForegroundColor Yellow
+  Write-Host "Completed with unavailable/failed tools or warnings; see the summary above." -ForegroundColor Yellow
   exit 2
 }
 
