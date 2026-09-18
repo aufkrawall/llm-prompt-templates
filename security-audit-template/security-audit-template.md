@@ -302,13 +302,14 @@ Auditors and LLM agents must not guess tool paths.
 
 When tool detector output exists, resolve tools in this order:
 
-1. generated `security-audit-tool-manifest.json`
-2. `tool-paths.env`
-3. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
-4. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
-5. safe fallback tools
+1. generated `debug-tool-manifest.json` for generic debugger/developer tools
+2. generated `security-audit-tool-manifest.json` for security-specific scanner/install results
+3. `tool-paths.env`
+4. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
+5. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
+6. safe fallback tools
 
-If a tool appears in the manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
+If a tool appears in the relevant manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
 
 Default coverage mode is advisory:
 
