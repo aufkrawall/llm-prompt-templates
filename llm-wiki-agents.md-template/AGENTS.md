@@ -21,7 +21,7 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 ## Engineering
 
 - Fix root causes rather than hiding, suppressing, weakening, or timing around failures.
-- Avoid arbitrary sleeps, polling delays, retries, or other timing-sensitive workarounds unless timing is itself part of the required behavior.
+- Avoid arbitrary sleeps, polling delays, retries, or other timing-sensitive workarounds unless timing is itself part of the required behavior; prefer deterministic designs when practical.
 - Preserve intended features, compatibility guarantees, performance characteristics, and public contracts unless the requested change intentionally alters them.
 - Keep behavioral diffs focused; do not mix unrelated formatting, generated churn, cleanup, or opportunistic refactors when they can be separated.
 - Do not commit or expose credentials, private keys, tokens, user data, dumps, symbols, captures, or other sensitive artifacts.
@@ -43,6 +43,7 @@ When copying this template, record only non-negotiable repository constraints, s
 - compatibility guarantees
 - performance or latency limits
 - required validation scenarios
+- behavior that must not be disabled to avoid fixing defects
 - prohibited implementation shortcuts
 
 Keep incident history and one-off debugging details in `llm-wiki/`, not here.
