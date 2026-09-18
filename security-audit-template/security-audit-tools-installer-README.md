@@ -260,7 +260,7 @@ Typical exit-code policy:
 
 ```text
 0 = no warnings
-2 = completed with unavailable/skipped tools or warnings
+2 = completed with failed/unavailable required Full-profile tools or warnings; intentional Custom/Minimal skips are summarized but do not by themselves cause exit 2
 3 = strict required-tool gate failed
 ```
 
@@ -303,7 +303,7 @@ Default uninstall removes the script-managed install root:
 .\install-security-audit-tools.ps1 -Uninstall
 ```
 
-Shared package-manager installs and Python user packages are not removed by default because they may have existed before the script was run.
+Shared package-manager installs and Python user packages are not removed by default because they may have existed before the script was run. Visual Studio Build Tools and Windows SDK components are never auto-removed by this script, even with `-RemoveSharedPackages`, because they may be shared by unrelated developer workflows.
 
 To attempt removing shared packages installed by supported script paths:
 
