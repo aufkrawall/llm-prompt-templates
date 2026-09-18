@@ -219,6 +219,14 @@ For later fixes:
 - Treat parser/native/FFI/unsafe/interop/concurrency/dynamic-loading/privileged and other high-blast-radius boundaries as high-risk until validated, without treating the mechanism itself as a defect.
 - Validate fixes with the original reproduction and focused automated regression tests when practical, across affected profiles/configurations/artifact modes.
 
+Language-specific implementation constraints where applicable:
+- **C**: preserve ABI/layout and ownership contracts; pair allocation/deallocation; avoid introducing UB through aliasing, alignment, arithmetic, lifetime, or cleanup changes.
+- **C++**: preserve exception/noexcept, move/copy, RAII, ABI, and object-lifetime contracts; avoid replacing clear ownership with raw/manual lifetime without need.
+- **Rust**: minimize and document unsafe surface; preserve safety invariants, feature behavior, MSRV/edition/public API/semver expectations, and FFI layout/unwind contracts.
+- **C#/.NET**: preserve TFM/public API/nullability/serialization/config contracts; dispose owned resources; preserve async/cancellation semantics; validate supported publish modes after reflection/dynamic-code changes.
+- **Go**: preserve exported API/module compatibility and context/error contracts; prevent goroutine/resource leaks; make channel ownership and shutdown explicit; validate concurrent changed paths with the race detector where supported.
+- **Python**: preserve supported interpreter versions, public/import/package/entry-point behavior, serialization/config contracts, typing promises, async/cancellation semantics, and wheel/sdist compatibility; close owned resources/processes/tasks and validate installed-package behavior when packaging is affected.
+
 ### 7. Final Verification Results
 
 For each applicable check report `Passed / Failed / Partial / Not run / N/A`, evidence, and limitations.
