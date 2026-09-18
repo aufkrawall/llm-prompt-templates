@@ -347,7 +347,7 @@ function Resolve-MsvcTool {
     return
   }
 
-  $matches = [System.Collections.Generic.List[object]]::new()
+  $msvcToolMatches = [System.Collections.Generic.List[object]]::new()
   foreach ($root in @(Get-VisualStudioRoots)) {
     if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
 
@@ -356,10 +356,10 @@ function Resolve-MsvcTool {
         $normalized = $_.FullName.Replace("/", "\")
         $normalized -match "\\VC\\Tools\\MSVC\\.*\\bin\\Host(?:x64|x86|arm64)\\(?:x64|x86|arm64)\\"
       } |
-      ForEach-Object { $matches.Add($_) | Out-Null }
+      ForEach-Object { $msvcToolMatches.Add($_) | Out-Null }
   }
 
-  $preferred = Select-PreferredMsvcToolMatch -Candidates @($matches)
+  $preferred = Select-PreferredMsvcToolMatch -Candidates @($msvcToolMatches)
   if ($preferred) {
     Add-Result -Name $ToolName -Category "MSVC binary tools" -Status "available" -Path $preferred.FullName -Source "Visual Studio discovery"
     return
