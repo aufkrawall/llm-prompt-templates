@@ -76,7 +76,9 @@ Use from the project root:
 .\install-security-audit-tools.ps1
 ```
 
-Conservative default: install/detect security-audit tools where supported, then invoke the shared non-mutating `tools/discover-debug-tools.ps1` helper for generic debugger/developer-tool paths.
+Interactive default: starting the script without parameters opens a setup wizard. The default wizard profile is **Full install**. Press Enter to accept that profile, review the plan, then confirm; the script attempts every supported install path, including large packages, and finally invokes the shared non-mutating `tools/discover-debug-tools.ps1` helper for generic debugger/developer-tool paths.
+
+The default full profile can download several GB, install/update shared developer packages, change the user Python environment, trigger UAC elevation, and require a reboot. Use the custom/minimal wizard profiles or explicit CLI switches when that is not desired.
 
 ## Linux/macOS script
 
@@ -153,7 +155,7 @@ Default portable Sysinternals tools are installed under:
 %LOCALAPPDATA%\SecurityAuditTools\bin\vswhere
 ```
 
-Windows SDK Debugging Tools and MSVC tools are not installed by default. Their paths are discovered by the shared `discover-debug-tools.ps1` helper, which handles x86, x64, ARM, and ARM64 SDK debugger roots plus x86/x64/ARM64 MSVC host/target layouts.
+A confirmed default/full Windows run attempts both the **Windows SDK Debugging Tools** feature (including `cdb.exe` and related SDK tools) and the current stable **Visual Studio Build Tools C++ workload** with recommended and optional components. After installation, the shared `discover-debug-tools.ps1` helper resolves x86, x64, ARM, and ARM64 SDK debugger roots plus x86/x64/ARM64 MSVC host/target layouts. Explicit CLI/custom/minimal runs can still omit either large toolchain.
 
 The generic discovery regression check lives with the shared helper:
 
@@ -161,10 +163,11 @@ The generic discovery regression check lives with the shared helper:
 .\common-tools\tests\test-debug-tool-discovery.ps1
 ```
 
-The security installer also has a regression check that ensures generic path-generation logic is not duplicated back into the security script:
+The security installer also has regression checks for generic-discovery ownership and the wizard/full-install contract:
 
 ```powershell
 .\security-audit-template\tests\test-generic-debug-discovery-integration.ps1
+.\security-audit-template\tests\test-installer-wizard.ps1
 ```
 
 ## Project-specific diagnostics
@@ -175,81 +178,59 @@ After copying the bundle into a project, its local tool inventory may add projec
 
 Apply project-specific diagnostics only when their subsystem is in scope. Missing irrelevant project-specific tools must not reduce score or confidence.
 
-## Windows SAST/secrets/dependency tool setup
+## Windows wizard and install profiles
 
-Default Windows run:
+Default interactive run:
 
 ```powershell
 .\install-security-audit-tools.ps1
 ```
 
-Default install attempts may include:
+Wizard profiles:
+
+1. **Full install** — default; all supported install paths, including large packages.
+2. **Full install + edit paths/validation settings**.
+3. **Custom install** — exposes every install/skip switch plus path and validation settings.
+4. **Minimal/detection-focused**.
+5. **Uninstall**.
+
+The default Full profile enables or attempts:
 
 ```text
-gitleaks
-osv-scanner
-```
-
-Detected but not installed by default:
-
-```text
-semgrep
-flawfinder
-pip-audit
-```
-
-Python/pip-based install opt-in:
-
-```powershell
-.\install-security-audit-tools.ps1 -IncludePythonSast
-```
-
-Still opt-in because of size, side effects, or specialization:
-
-```text
-CodeQL
-trufflehog
+Visual Studio Build Tools C++ workload (recommended + optional VCTools components)
+Windows SDK Debugging Tools / cdb.exe
 WinDbg
 LLVM
 FFmpeg
-GUI Sysinternals
+CodeQL
+GUI + CLI Sysinternals
+gitleaks
+trufflehog
+osv-scanner
+semgrep
+flawfinder
+pip-audit
+vswhere
 ```
 
-Detector-only/minimal behavior:
+Toolchain-native scanners that the script does not manage, such as `cargo-audit` and `govulncheck`, are still detected when applicable. If they are missing, the completion summary reports them.
+
+A custom or explicit CLI run can opt out:
 
 ```powershell
 .\install-security-audit-tools.ps1 -Minimal
+.\install-security-audit-tools.ps1 -Full -SkipSastInstall
+.\install-security-audit-tools.ps1 -Full -SkipSecretsInstall
+.\install-security-audit-tools.ps1 -Full -SkipDependencyScannerInstall
+.\install-security-audit-tools.ps1 -IncludeWindowsSdkDebuggers
+.\install-security-audit-tools.ps1 -IncludeVisualStudioBuildTools
 ```
 
-Targeted opt-outs:
+Skip switches take precedence over the corresponding SAST/secrets/dependency include switches, including when `-Full` is used.
 
-```powershell
-.\install-security-audit-tools.ps1 -SkipSastInstall
-.\install-security-audit-tools.ps1 -SkipSecretsInstall
-.\install-security-audit-tools.ps1 -SkipDependencyScannerInstall
-```
+The Windows SDK debugger feature uses Microsoft's SDK installer and the `OptionId.WindowsDesktopDebuggers` feature. Visual Studio Build Tools uses Microsoft's current stable Build Tools bootstrapper with `Microsoft.VisualStudio.Workload.VCTools`, `--includeRecommended`, and `--includeOptional`.
 
-Python/pip-based scanners remain opt-in because they can mutate user Python environments, install scripts outside PATH, and introduce resolver/version side effects. CodeQL and trufflehog remain opt-in because of size or depth/noise.
-
-Group installs:
-
-```powershell
-.\install-security-audit-tools.ps1 -IncludeSast
-.\install-security-audit-tools.ps1 -IncludeSecrets
-.\install-security-audit-tools.ps1 -IncludeDependencyScanners
-```
-
-Individual installs:
-
-```powershell
-.\install-security-audit-tools.ps1 -IncludeSemgrep
-.\install-security-audit-tools.ps1 -IncludeFlawfinder
-.\install-security-audit-tools.ps1 -IncludeGitleaks
-.\install-security-audit-tools.ps1 -IncludeTruffleHog
-.\install-security-audit-tools.ps1 -IncludeOSVScanner
-.\install-security-audit-tools.ps1 -IncludePipAudit
-.\install-security-audit-tools.ps1 -IncludeCodeQL
-```
+At the end of every run, the script prints a consolidated installation/discovery summary. Items that were not installed, not found, unresolved, failed, or intentionally skipped are listed there, followed by recorded warnings and evidence paths.
 
 ## Path lookup
 
@@ -279,7 +260,7 @@ Typical exit-code policy:
 
 ```text
 0 = no warnings
-2 = completed with warnings
+2 = completed with unavailable/skipped tools or warnings
 3 = strict required-tool gate failed
 ```
 
@@ -293,38 +274,26 @@ Valid scoped variables such as `$script:Warnings` and `$env:LOCALAPPDATA` must r
 
 ## Python/pip-based scanner policy
 
-`semgrep`, `flawfinder`, and `pip-audit` are useful, but they are not installed by default in the Windows script because Python user installs can:
+The default wizard/full profile attempts `semgrep`, `flawfinder`, and `pip-audit` through pipx or Python user installs. This can:
 
 - modify the user's Python package set
 - install scripts into user script directories outside `PATH`
 - produce resolver/backtracking output and dependency conflicts
 - behave differently across Python versions
 
-Use `-IncludePythonSast` or individual scanner switches only when those side effects are acceptable.
+The wizard shows this side effect before final confirmation. Use a custom/minimal profile or `-SkipSastInstall` / `-SkipDependencyScannerInstall` when these changes are not acceptable.
 
 ## Full install mode
 
-Use `-Full` to install as much supported tooling as practical:
+The no-argument wizard defaults to Full mode. For non-interactive automation, request the same profile explicitly:
 
 ```powershell
 .\install-security-audit-tools.ps1 -Full
 ```
 
-Full mode may enable:
+Full mode enables every supported install category, including Windows SDK Debugging Tools and Visual Studio Build Tools/MSVC. Explicit skip switches remain authoritative for their corresponding categories.
 
-```text
-gitleaks
-osv-scanner
-semgrep / flawfinder / pip-audit through pipx or Python user install
-trufflehog
-CodeQL
-GUI Sysinternals
-WinDbg Preview through winget
-LLVM through winget
-FFmpeg
-```
-
-This mode can install large packages, use package managers, and mutate the user Python environment. Use it only on a machine where those side effects are acceptable.
+This mode can install large packages, use package managers, modify shared developer tooling, mutate the user Python environment, trigger UAC, and require a reboot. The installer performs final discovery afterward and reports anything that is still unavailable.
 
 ## Uninstall mode
 
