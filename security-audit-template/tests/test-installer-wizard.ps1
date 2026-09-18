@@ -74,6 +74,58 @@ foreach ($forbiddenFullSetting in @(
   }
 }
 
+$wizardPromptMarkers = @(
+  'Read-WizardText -Prompt "InstallRoot"',
+  'Read-WizardText -Prompt "ProjectRoot"',
+  'Read-WizardText -Prompt "DebugToolsMdPath"',
+  'Read-WizardText -Prompt "DebugToolDiscoveryScriptPath"',
+  'Read-WizardText -Prompt "ToolPathsEnv"',
+  'Read-WizardYesNo -Prompt "SkipSysinternals"',
+  'Read-WizardYesNo -Prompt "IncludeGuiSysinternals"',
+  'Read-WizardYesNo -Prompt "IncludeWinDbg"',
+  'Read-WizardYesNo -Prompt "IncludeWindowsSdkDebuggers',
+  'Read-WizardYesNo -Prompt "IncludeVisualStudioBuildTools',
+  'Read-WizardYesNo -Prompt "IncludeFFmpeg"',
+  'Read-WizardYesNo -Prompt "IncludeLLVMViaWinget"',
+  'Read-WizardYesNo -Prompt "SkipVSWhere"',
+  'Read-WizardYesNo -Prompt "SkipSastInstall"',
+  'Read-WizardYesNo -Prompt "SkipSecretsInstall"',
+  'Read-WizardYesNo -Prompt "SkipDependencyScannerInstall"',
+  'Read-WizardYesNo -Prompt "IncludeSast"',
+  'Read-WizardYesNo -Prompt "IncludePythonSast"',
+  'Read-WizardYesNo -Prompt "IncludeSecrets"',
+  'Read-WizardYesNo -Prompt "IncludeDependencyScanners"',
+  'Read-WizardYesNo -Prompt "IncludeSemgrep"',
+  'Read-WizardYesNo -Prompt "IncludeFlawfinder"',
+  'Read-WizardYesNo -Prompt "IncludeGitleaks"',
+  'Read-WizardYesNo -Prompt "IncludeTruffleHog"',
+  'Read-WizardYesNo -Prompt "IncludeOSVScanner"',
+  'Read-WizardYesNo -Prompt "IncludePipAudit"',
+  'Read-WizardYesNo -Prompt "IncludeCodeQL"',
+  'Read-WizardText -Prompt "RequireTools',
+  'Read-WizardYesNo -Prompt "StrictRequiredTools"',
+  'Read-WizardYesNo -Prompt "AddToUserPath"',
+  'Read-WizardYesNo -Prompt "WhatIfOnly',
+  'Read-WizardYesNo -Prompt "RemoveSharedPackages"',
+  'Read-WizardYesNo -Prompt "RemovePythonPackages"'
+)
+
+foreach ($marker in $wizardPromptMarkers) {
+  if (-not $content.Contains($marker)) {
+    throw "Wizard does not expose expected CLI setting: $marker"
+  }
+}
+
+foreach ($profileMarker in @(
+  "Full install (default; all supported tools including large packages)",
+  "Minimal/detection-focused mode",
+  "Uninstall"
+)) {
+  if (-not $content.Contains($profileMarker)) {
+    throw "Wizard does not expose expected mode: $profileMarker"
+  }
+}
+
 if (-not $content.Contains('if ($Wizard -or $PSBoundParameters.Count -eq 0)')) {
   throw "No-argument execution does not automatically enter the wizard."
 }
