@@ -11,6 +11,7 @@ Use this file as a project-level agent instruction baseline. Replace or extend t
 
 - Respect the repository's declared host/platform priority, build system, package manager, and toolchain. Prefer project-local or repository-pinned tools over unrelated global alternatives.
 - After code changes, run the smallest relevant build, test, lint, and/or static-analysis commands that provide meaningful verification. Run broader validation when the change has broad impact or the repository requires it.
+- As part of every code change, explicitly check whether the touched behavior needs stronger regression coverage or diagnostics. Do not skip this assessment merely because existing tests pass or the immediate reproduction is fixed.
 - Do not claim success from command exit status alone; inspect relevant diagnostics and confirm the changed behavior or artifact when practical.
 - For large logs, compiler/test output, generated files, minified bundles, traces, or dumps, start with targeted searches, relevant line ranges, summaries, or head/tail views instead of loading thousands of irrelevant lines into working context. Preserve or reference complete output when it is needed as evidence.
 - Do not push, publish, deploy, release, or alter remote state unless explicitly requested or clearly required by the repository workflow.
@@ -31,10 +32,12 @@ Use this file as a project-level agent instruction baseline. Replace or extend t
 
 ## Tests and diagnostics
 
-- For bug fixes, add or improve regression coverage when a focused test can meaningfully prevent recurrence.
+- For every bug fix or behavioral correction, explicitly evaluate regression coverage. Add or improve a focused automated regression test when practical and valuable; prefer coverage that would fail before the fix and pass after it. If meaningful automation is impractical, preserve a reproducible verification method and state the limitation.
 - For features, add or adjust tests for the new contract and important edge cases when the project has suitable test infrastructure.
-- Do not create low-value tests solely to satisfy a blanket testing rule. Prefer tests that would have failed before the fix or that validate an important invariant.
-- Improve diagnostic logging only when it materially helps explain state transitions, failure modes, or future regressions. Avoid noisy logs and do not log secrets or unnecessary sensitive data.
+- When touching code with existing tests, check for nearby missing invariants or edge cases exposed by the change and improve focused coverage when it meaningfully prevents recurrence.
+- Do not create low-value tests solely to satisfy a blanket testing rule. Prefer tests that validate the changed behavior, an important invariant, or a credible regression path.
+- For every bug investigation or fix, explicitly evaluate whether diagnostics would make a recurrence materially easier to identify. Improve high-signal debug or diagnostic logging around relevant state transitions, inputs, boundaries, recovery paths, and failures when useful.
+- Keep diagnostics actionable: include enough context to distinguish likely failure modes, but avoid noisy or duplicative logs, secrets, unnecessary sensitive data, and material production overhead.
 - Preserve useful debug information for diagnosable builds when this is compatible with the project's release policy.
 - Do not introduce sleeps or timing assumptions into tests unless timing itself is the behavior being tested and the test remains deterministic.
 
