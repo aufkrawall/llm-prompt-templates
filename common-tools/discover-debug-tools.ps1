@@ -51,8 +51,8 @@ $ManifestPath = Join-Path $OutputRoot "debug-tool-manifest.json"
 $WarningsPath = Join-Path $OutputRoot "debug-tool-warnings.txt"
 $MarkdownPath = Join-Path $OutputRoot "debug-tool-availability.md"
 
-$script:Results = New-Object System.Collections.Generic.List[object]
-$script:Warnings = New-Object System.Collections.Generic.List[string]
+$script:Results = [System.Collections.Generic.List[object]]::new()
+$script:Warnings = [System.Collections.Generic.List[string]]::new()
 $script:Overrides = @{}
 
 function Add-WarningMessage {
@@ -110,7 +110,7 @@ function Read-ToolPathOverrides {
 
     $parts = $trimmed -split "=", 2
     if ($parts.Count -ne 2) {
-      Add-WarningMessage "Ignoring malformed tool-path override line in ${resolved}: $trimmed"
+      Add-WarningMessage ("Ignoring malformed tool-path override line in {0}: {1}" -f $resolved, $trimmed)
       continue
     }
 
@@ -179,7 +179,7 @@ function Get-WindowsSdkDebuggerArchitectures {
 function Get-WindowsSdkDebuggerCandidatePaths {
   param([string]$ToolName)
 
-  $paths = New-Object System.Collections.Generic.List[string]
+  $paths = [System.Collections.Generic.List[string]]::new()
   $overrideKeys = @{
     x86 = "WINDOWS_SDK_DEBUGGERS_X86"
     x64 = "WINDOWS_SDK_DEBUGGERS_X64"
@@ -302,7 +302,7 @@ function Get-VsWherePath {
 }
 
 function Get-VisualStudioRoots {
-  $roots = New-Object System.Collections.Generic.List[string]
+  $roots = [System.Collections.Generic.List[string]]::new()
   $vswhere = Get-VsWherePath
 
   if ($vswhere) {
@@ -347,7 +347,7 @@ function Resolve-MsvcTool {
     return
   }
 
-  $matches = New-Object System.Collections.Generic.List[object]
+  $matches = [System.Collections.Generic.List[object]]::new()
   foreach ($root in @(Get-VisualStudioRoots)) {
     if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
 
@@ -436,7 +436,7 @@ foreach ($tool in @("dumpbin.exe", "link.exe", "lib.exe", "editbin.exe", "undnam
   Resolve-MsvcTool -ToolName $tool
 }
 
-$llvmRoots = New-Object System.Collections.Generic.List[string]
+$llvmRoots = [System.Collections.Generic.List[string]]::new()
 $llvmOverride = Get-OverrideValue -Name "LLVM_ROOT"
 if ($llvmOverride) { $llvmRoots.Add($llvmOverride) | Out-Null }
 $programFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
@@ -487,7 +487,7 @@ if (-not $NoWrite) {
   $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ManifestPath -Encoding UTF8
   $script:Warnings | Set-Content -LiteralPath $WarningsPath -Encoding UTF8
 
-  $md = New-Object System.Collections.Generic.List[string]
+  $md = [System.Collections.Generic.List[string]]::new()
   $md.Add("# Debug Tool Availability")
   $md.Add("")
   $md.Add("- Generated: $($manifest.generated_at)")

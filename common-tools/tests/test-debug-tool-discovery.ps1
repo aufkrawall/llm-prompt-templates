@@ -56,7 +56,7 @@ $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSO
 $overrideFile = $null
 
 try {
-  $script:Warnings = New-Object System.Collections.Generic.List[string]
+  $script:Warnings = [System.Collections.Generic.List[string]]::new()
   function Add-WarningMessage { param([string]$Message) $script:Warnings.Add($Message) | Out-Null }
 
   $ProjectRoot = [IO.Path]::GetTempPath()
@@ -70,12 +70,18 @@ try {
   $overrideFile = Join-Path $ProjectRoot "llm-debug-tool-paths-test.env"
   @(
     "WINDOWS_SDK_DEBUGGERS_X86=$overrideRoot",
-    "LLVM_ROOT=.\llvm-test"
+    "LLVM_ROOT=.\llvm-test",
+    "MALFORMED_LINE"
   ) | Set-Content -LiteralPath $overrideFile -Encoding UTF8
 
   $script:Overrides = Read-ToolPathOverrides -Path $overrideFile
   if ((Get-OverrideValue -Name "WINDOWS_SDK_DEBUGGERS_X86") -ne $overrideRoot) {
     throw "tool-paths.env override was not loaded."
+  }
+
+  $expectedMalformedWarning = "Ignoring malformed tool-path override line in {0}: MALFORMED_LINE" -f ([IO.Path]::GetFullPath($overrideFile))
+  if ($script:Warnings -notcontains $expectedMalformedWarning) {
+    throw "Malformed override warning was not emitted with the resolved path."
   }
 
   $paths = @(Get-WindowsSdkDebuggerCandidatePaths -ToolName "cdb.exe")
