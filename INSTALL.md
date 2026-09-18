@@ -91,8 +91,8 @@ Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/disco
 
 - This helper is discovery-only: it must not install packages, download tools, edit PATH, or mutate debugger/system state.
 - Merge `common-tools/tool-paths.example.env` into the project's root `tool-paths.example.env` or equivalent path-override example instead of overwriting existing variables.
-- On Windows, when current-machine tool paths materially help the integration, the helper may be run to produce `debug-tool-manifest.json`. Use that manifest as evidence for resolved paths.
-- Do not commit the generated manifest or machine-specific absolute paths unless the target repository explicitly intends to track them.
+- On Windows, when current-machine tool paths materially help the integration, the helper may be run to produce `debug-tool-manifest.json`. Use that manifest as evidence when adapting `llm-wiki/debug-tools.md`: record durable path rules, architecture requirements, or project-local tool roots, and record exact machine paths only when the target repository intentionally tracks them.
+- Do not commit the generated manifest or incidental machine-specific absolute paths unless the target repository explicitly intends to track them.
 - Do not duplicate Windows SDK/MSVC path-generation logic into security-specific scripts or wiki pages; keep generic discovery centralized.
 
 ### 5. Integrate `llm-wiki/debug-tools-security-audit.md`
