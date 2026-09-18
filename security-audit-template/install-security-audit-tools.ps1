@@ -1600,6 +1600,76 @@ if ($AddToUserPath) {
 Invoke-DebugToolDiscovery
 Test-RequiredToolGate
 
+function Get-FinalUnavailableResults {
+  $latestByName = @{}
+  foreach ($result in $script:Results) {
+    if (-not $result.name) { continue }
+    $latestByName[[string]$result.name] = $result
+  }
+
+  $problemStatuses = @(
+    "missing",
+    "failed",
+    "install-failed",
+    "installed-unresolved",
+    "signature-warning",
+    "missing-winget",
+    "missing-helper",
+    "package-installed-alias-not-resolved",
+    "asset-not-found",
+    "python-missing",
+    "skipped-not-requested"
+  )
+
+  return @(
+    $latestByName.Values |
+      Where-Object { $problemStatuses -contains [string]$_.status } |
+      Sort-Object category, name
+  )
+}
+
+function Write-CompletionSummary {
+  param([object[]]$UnavailableResults)
+
+  Write-Host ""
+  Write-Host "===== Installation / discovery summary =====" -ForegroundColor Cyan
+
+  if ($WhatIfOnly) {
+    Write-Host "Dry run completed; no installation changes were requested." -ForegroundColor Yellow
+  }
+
+  if (-not $UnavailableResults -or $UnavailableResults.Count -eq 0) {
+    Write-Host "All selected/applicable tools were installed or found." -ForegroundColor Green
+  } else {
+    Write-Host ("{0} tool(s)/item(s) were not installed, not found, unresolved, failed, or intentionally skipped:" -f $UnavailableResults.Count) -ForegroundColor Yellow
+    foreach ($item in $UnavailableResults) {
+      $details = [string]$item.notes
+      if (-not $details) { $details = [string]$item.source }
+      $suffix = ""
+      if ($details) { $suffix = "; " + $details }
+      Write-Host ("  - {0} [{1}] status={2}{3}" -f $item.name, $item.category, $item.status, $suffix)
+    }
+  }
+
+  $distinctWarnings = @($script:Warnings | Select-Object -Unique)
+  if ($distinctWarnings.Count -gt 0) {
+    Write-Host ""
+    Write-Host ("Warnings recorded ({0}):" -f $distinctWarnings.Count) -ForegroundColor Yellow
+    foreach ($warning in $distinctWarnings) {
+      Write-Host ("  - " + $warning)
+    }
+  }
+
+  if (-not $WhatIfOnly) {
+    Write-Host ""
+    Write-Host "Evidence:"
+    Write-Host ("  Security manifest: {0}" -f $ManifestPath)
+    Write-Host ("  Debug-tool manifest: {0}" -f $DebugToolManifestPath)
+  }
+}
+
+$finalUnavailableResults = @(Get-FinalUnavailableResults)
+
 # Write outputs.
 $manifest = [pscustomobject]@{
   generated_at = (Get-Date).ToString("o")
@@ -1610,9 +1680,13 @@ $manifest = [pscustomobject]@{
   strict_required_tools = [bool]$StrictRequiredTools
   required_tools = $RequireTools
   required_tool_missing = [bool]$script:RequiredToolMissing
+  wizard_used = [bool]$script:WizardUsed
   full_mode = [bool]$Full
   minimal_mode = [bool]$Minimal
-  default_python_sast_install = $false
+  include_windows_sdk_debuggers = [bool]$IncludeWindowsSdkDebuggers
+  include_visual_studio_build_tools = [bool]$IncludeVisualStudioBuildTools
+  unavailable_results = $finalUnavailableResults
+  default_python_sast_install = [bool]$IncludePythonSast
   default_secrets_install = [bool]((-not $Minimal) -and (-not $SkipSecretsInstall))
   default_dependency_scanner_install = [bool]((-not $Minimal) -and (-not $SkipDependencyScannerInstall))
   host = [pscustomobject]@{
@@ -1666,17 +1740,20 @@ if ($WhatIfOnly) {
   Write-Host "Wrote Markdown evidence: $MarkdownPath"
 }
 
+Write-CompletionSummary -UnavailableResults $finalUnavailableResults
+
 if ($StrictRequiredTools -and $script:RequiredToolMissing) {
   Write-Host ""
   Write-Host "Completed with missing required tools. Strict required-tool gate failed." -ForegroundColor Red
   exit 3
 }
 
-if ($script:Warnings.Count -gt 0) {
+if ($script:Warnings.Count -gt 0 -or $finalUnavailableResults.Count -gt 0) {
   Write-Host ""
-  Write-Host "Completed with warnings. These should be reflected in audit confidence/scoring." -ForegroundColor Yellow
+  Write-Host "Completed with unavailable/skipped tools or warnings; see the summary above." -ForegroundColor Yellow
   exit 2
 }
 
-Write-Host "Completed without warnings." -ForegroundColor Green
+Write-Host ""
+Write-Host "Completed successfully; all selected/applicable tools were installed or found." -ForegroundColor Green
 exit 0
