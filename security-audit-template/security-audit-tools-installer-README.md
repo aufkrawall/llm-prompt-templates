@@ -135,7 +135,7 @@ Default portable Sysinternals tools are installed under:
 %LOCALAPPDATA%\SecurityAuditTools\bin\vswhere
 ```
 
-Windows SDK Debugging Tools and MSVC tools are detected but are not installed by default. Detection considers x86, x64, and ARM64 debugger/tool variants and prefers host-appropriate executables when multiple MSVC variants are present.
+Windows SDK Debugging Tools and MSVC tools are detected but are not installed by default. Detection considers x86, x64, ARM, and ARM64 debugger variants plus x86/x64/ARM64 MSVC tool variants and prefers host-appropriate executables when multiple MSVC variants are present.
 
 A dependency-free regression check for this discovery logic is available at:
 
