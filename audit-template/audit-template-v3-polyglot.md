@@ -175,15 +175,20 @@ Severity: Critical / High / Medium / Low / Informational
 Confidence: High / Medium / Low
 Validation status: Confirmed / Strongly supported
 Location:
-Affected configurations/targets/artifact mode:
-Affected workflow/API contract:
+Affected configurations/versions/features/targets:
+Affected runtime/publish/artifact mode:
+Affected user workflow/API contract:
+User-visible or consumer-visible symptom:
 Preconditions:
-Reproduction:
+Reproduction steps:
 Expected behavior:
 Actual behavior:
+Problem:
 Impact:
+Blast radius:
 Root cause:
 Recommended fix:
+Implementation guidance:
 Acceptance criteria:
 Suggested tests:
 Release blocker: Yes / No
@@ -203,7 +208,7 @@ State which ecosystem-specific checks materially affected the assessment and whi
 
 ### 5. Implementation Plan
 
-Group selected findings into the fewest practical implementation phases, ordered by severity and dependency. For each phase include finding IDs, tasks, affected areas/artifacts, dependencies, validation, compatibility/performance considerations, release requirement, and implementation order. Do not create empty canned phases.
+Group selected findings into the fewest applicable phases, ordered by severity and dependency. Preserve this phase taxonomy when relevant: **0 Safety/Baseline; 1 Release Blockers; 2 Application Correctness/Reliability/Compatibility; 3 Regression Hardening; 4 Performance/Resource/Storage/Artifact Size; 5 Architecture/Maintainability; 6 Build/Runtime/Artifacts/Dependencies/Docs; 7 Final Validation**. Omit empty phases. For each included phase state finding IDs, tasks, affected areas/artifacts, dependencies, validation, compatibility/performance considerations, release requirement, and implementation order.
 
 ### 6. Implementation Rules
 
