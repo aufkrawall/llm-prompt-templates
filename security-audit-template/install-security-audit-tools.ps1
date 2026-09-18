@@ -963,6 +963,89 @@ function Install-WithWinget {
   Add-Result -Name $Name -Category "winget" -Status "install-failed" -Source "winget:$PackageId" -Notes "ExitCode=$exit; $Reason"
 }
 
+function Get-WindowsSdkDebuggerArchitectures {
+  $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
+  switch ($hostArchitecture.ToUpperInvariant()) {
+    "ARM64" { return @("arm64", "x64", "x86") }
+    "AMD64" { return @("x64", "x86", "arm64") }
+    default { return @("x86", "x64", "arm64") }
+  }
+}
+
+function Get-WindowsSdkDebuggerCandidatePaths {
+  param([string]$ToolName)
+
+  $baseRoots = @(
+    ${env:ProgramFiles(x86)},
+    ${env:ProgramFiles}
+  ) | Where-Object { $_ } | Select-Object -Unique
+
+  $debuggerRoots = foreach ($baseRoot in $baseRoots) {
+    Join-Path (Join-Path (Join-Path $baseRoot "Windows Kits") "10") "Debuggers"
+  }
+
+  $paths = foreach ($architecture in @(Get-WindowsSdkDebuggerArchitectures)) {
+    foreach ($debuggerRoot in $debuggerRoots) {
+      Join-Path (Join-Path $debuggerRoot $architecture) $ToolName
+    }
+  }
+
+  return @($paths | Select-Object -Unique)
+}
+
+function Get-MsvcBinaryToolArchitecturePreferences {
+  $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
+  switch ($hostArchitecture.ToUpperInvariant()) {
+    "ARM64" {
+      return @(
+        "Hostarm64\arm64",
+        "Hostarm64\x64",
+        "Hostarm64\x86",
+        "Hostx64\x64",
+        "Hostx64\x86",
+        "Hostx86\x86"
+      )
+    }
+    "AMD64" {
+      return @(
+        "Hostx64\x64",
+        "Hostx64\x86",
+        "Hostx86\x86",
+        "Hostx86\x64",
+        "Hostarm64\arm64"
+      )
+    }
+    default {
+      return @(
+        "Hostx86\x86",
+        "Hostx86\x64",
+        "Hostx64\x64",
+        "Hostx64\x86",
+        "Hostarm64\arm64"
+      )
+    }
+  }
+}
+
+function Select-PreferredMsvcToolMatch {
+  param([object[]]$Matches)
+
+  if (-not $Matches -or $Matches.Count -eq 0) { return $null }
+
+  foreach ($preference in @(Get-MsvcBinaryToolArchitecturePreferences)) {
+    $candidate = $Matches |
+      Where-Object {
+        $normalized = $_.FullName.Replace("/", "\")
+        $normalized -like "*\bin\$preference\*"
+      } |
+      Sort-Object FullName -Descending |
+      Select-Object -First 1
+    if ($candidate) { return $candidate }
+  }
+
+  return $Matches | Sort-Object FullName -Descending | Select-Object -First 1
+}
+
 function Find-VSTools {
   param([string]$VSWherePath)
 
@@ -989,12 +1072,16 @@ function Find-VSTools {
     $found = $null
     foreach ($root in $roots | Select-Object -Unique) {
       if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
-      $matches = Get-ChildItem -LiteralPath $root -Recurse -Filter $tool -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -match "\\VC\\Tools\\MSVC\\.*\\bin\\Hostx64\\x64\\" } |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1
-      if ($matches) {
-        $found = $matches.FullName
+      $matches = @(
+        Get-ChildItem -LiteralPath $root -Recurse -Filter $tool -ErrorAction SilentlyContinue |
+          Where-Object {
+            $normalized = $_.FullName.Replace("/", "\")
+            $normalized -match "\\VC\\Tools\\MSVC\\.*\\bin\\Host(?:x64|x86|arm64)\\(?:x64|x86|arm64)\\"
+          }
+      )
+      $match = Select-PreferredMsvcToolMatch -Matches $matches
+      if ($match) {
+        $found = $match.FullName
         break
       }
     }
@@ -1138,48 +1225,22 @@ if ($IncludeFFmpeg) {
   Add-WarningMessage "FFmpeg/ffprobe were not installed by default. Use -IncludeFFmpeg only when capture/media inspection is needed."
 }
 
-# Detect Windows SDK Debugging Tools.
-$sdkDebuggerPaths = @{
-  "cdb.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\cdb.exe"
-  )
-  "windbg.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\windbg.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\windbg.exe"
-  )
-  "dumpchk.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\dumpchk.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\dumpchk.exe"
-  )
-  "symchk.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\symchk.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\symchk.exe"
-  )
-  "dbh.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\dbh.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\dbh.exe"
-  )
-  "pdbcopy.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\pdbcopy.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\pdbcopy.exe"
-  )
-  "symstore.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\symstore.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\symstore.exe"
-  )
-  "gflags.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\gflags.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\gflags.exe"
-  )
-  "umdh.exe" = @(
-    "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\umdh.exe",
-    "${env:ProgramFiles}\Windows Kits\10\Debuggers\x64\umdh.exe"
-  )
-}
+# Detect Windows SDK Debugging Tools across installed architecture variants.
+$sdkDebuggerToolNames = @(
+  "cdb.exe",
+  "windbg.exe",
+  "dumpchk.exe",
+  "symchk.exe",
+  "dbh.exe",
+  "pdbcopy.exe",
+  "symstore.exe",
+  "gflags.exe",
+  "umdh.exe"
+)
 
-foreach ($name in $sdkDebuggerPaths.Keys) {
-  Test-KnownPath -Name $name -Category "Windows SDK Debugging Tools" -Paths $sdkDebuggerPaths[$name] -WarningIfMissing "$name was not found. Windows SDK Debugging Tools are intentionally not installed by this script because they are large; dump/symbol/debug coverage may be reduced." | Out-Null
+foreach ($name in $sdkDebuggerToolNames) {
+  $candidatePaths = Get-WindowsSdkDebuggerCandidatePaths -ToolName $name
+  Test-KnownPath -Name $name -Category "Windows SDK Debugging Tools" -Paths $candidatePaths -WarningIfMissing "$name was not found in the Windows SDK x64, x86, or ARM64 debugger directories or PATH. Windows SDK Debugging Tools are intentionally not installed by this script because they are large; dump/symbol/debug coverage may be reduced." | Out-Null
 }
 
 # Detect WinDbg Preview alias.
