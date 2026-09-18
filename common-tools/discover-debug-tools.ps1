@@ -20,7 +20,8 @@
 
 .PARAMETER AdditionalToolRoots
   Additional local roots to search recursively, for example a security-audit install root.
-  When %LOCALAPPDATA%\SecurityAuditTools\bin exists, it is also searched automatically.
+  Existing managed Sysinternals, FFmpeg, and vswhere directories under
+  %LOCALAPPDATA%\SecurityAuditTools\bin are also searched automatically.
 
 .PARAMETER NoWrite
   Perform discovery without writing manifest/report files.
@@ -182,8 +183,11 @@ function Get-EffectiveAdditionalToolRoots {
 
   if ($env:LOCALAPPDATA) {
     $securityAuditBin = Join-Path $env:LOCALAPPDATA "SecurityAuditTools\bin"
-    if (Test-Path -LiteralPath $securityAuditBin) {
-      $roots.Add([IO.Path]::GetFullPath($securityAuditBin)) | Out-Null
+    foreach ($managedSubdirectory in @("sysinternals", "ffmpeg", "vswhere")) {
+      $managedRoot = Join-Path $securityAuditBin $managedSubdirectory
+      if (Test-Path -LiteralPath $managedRoot) {
+        $roots.Add([IO.Path]::GetFullPath($managedRoot)) | Out-Null
+      }
     }
   }
 
