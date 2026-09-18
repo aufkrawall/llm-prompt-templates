@@ -966,9 +966,9 @@ function Install-WithWinget {
 function Get-WindowsSdkDebuggerArchitectures {
   $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
   switch ($hostArchitecture.ToUpperInvariant()) {
-    "ARM64" { return @("arm64", "x64", "x86") }
-    "AMD64" { return @("x64", "x86", "arm64") }
-    default { return @("x86", "x64", "arm64") }
+    "ARM64" { return @("arm64", "x64", "x86", "arm") }
+    "AMD64" { return @("x64", "x86", "arm64", "arm") }
+    default { return @("x86", "x64", "arm", "arm64") }
   }
 }
 
@@ -1028,12 +1028,12 @@ function Get-MsvcBinaryToolArchitecturePreferences {
 }
 
 function Select-PreferredMsvcToolMatch {
-  param([object[]]$Matches)
+  param([object[]]$Candidates)
 
-  if (-not $Matches -or $Matches.Count -eq 0) { return $null }
+  if (-not $Candidates -or $Candidates.Count -eq 0) { return $null }
 
   foreach ($preference in @(Get-MsvcBinaryToolArchitecturePreferences)) {
-    $candidate = $Matches |
+    $candidate = $Candidates |
       Where-Object {
         $normalized = $_.FullName.Replace("/", "\")
         $normalized -like "*\bin\$preference\*"
@@ -1043,7 +1043,7 @@ function Select-PreferredMsvcToolMatch {
     if ($candidate) { return $candidate }
   }
 
-  return $Matches | Sort-Object FullName -Descending | Select-Object -First 1
+  return $Candidates | Sort-Object FullName -Descending | Select-Object -First 1
 }
 
 function Find-VSTools {
@@ -1072,14 +1072,14 @@ function Find-VSTools {
     $found = $null
     foreach ($root in $roots | Select-Object -Unique) {
       if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
-      $matches = @(
+      $toolCandidates = @(
         Get-ChildItem -LiteralPath $root -Recurse -Filter $tool -ErrorAction SilentlyContinue |
           Where-Object {
             $normalized = $_.FullName.Replace("/", "\")
             $normalized -match "\\VC\\Tools\\MSVC\\.*\\bin\\Host(?:x64|x86|arm64)\\(?:x64|x86|arm64)\\"
           }
       )
-      $match = Select-PreferredMsvcToolMatch -Matches $matches
+      $match = Select-PreferredMsvcToolMatch -Candidates $toolCandidates
       if ($match) {
         $found = $match.FullName
         break
@@ -1240,7 +1240,7 @@ $sdkDebuggerToolNames = @(
 
 foreach ($name in $sdkDebuggerToolNames) {
   $candidatePaths = Get-WindowsSdkDebuggerCandidatePaths -ToolName $name
-  Test-KnownPath -Name $name -Category "Windows SDK Debugging Tools" -Paths $candidatePaths -WarningIfMissing "$name was not found in the Windows SDK x64, x86, or ARM64 debugger directories or PATH. Windows SDK Debugging Tools are intentionally not installed by this script because they are large; dump/symbol/debug coverage may be reduced." | Out-Null
+  Test-KnownPath -Name $name -Category "Windows SDK Debugging Tools" -Paths $candidatePaths -WarningIfMissing "$name was not found in the Windows SDK x64, x86, ARM, or ARM64 debugger directories or PATH. Windows SDK Debugging Tools are intentionally not installed by this script because they are large; dump/symbol/debug coverage may be reduced." | Out-Null
 }
 
 # Detect WinDbg Preview alias.
