@@ -59,6 +59,7 @@ Keep incident history and one-off debugging details in `llm-wiki/`, not here.
 
 - For substantial work, start with `llm-wiki/index.md` when present, read only relevant topic pages, then consult `llm-wiki/log/recent.md` for active or stale-risk areas.
 - Skip broad wiki loading for trivial localized edits unless the area is unfamiliar or likely stale.
+- If substantial work would benefit from durable project memory and the core wiki pages are missing, create a minimal `llm-wiki/index.md`, `llm-wiki/overview.md`, and `llm-wiki/log/recent.md` after inspecting the repository.
 - Prefer updating existing topic pages. Keep current understanding on topic pages and chronology or partial investigations in `llm-wiki/log/recent.md`.
 - Do not copy raw logs or long command output into durable wiki pages unless the output itself is reusable evidence.
 - After substantial wiki changes, check for stale or contradictory claims, duplicates, broken links, and obsolete pages.
