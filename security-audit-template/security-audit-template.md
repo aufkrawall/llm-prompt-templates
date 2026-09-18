@@ -77,343 +77,55 @@ Assess platform-specific security differences, including:
 - per-platform crash behavior, diagnostics, symbol leakage, debug/release differences, and hardened runtime behavior
 
 
-### Required local audit knowledge discovery
+## Local audit knowledge and tools
 
-Before starting the audit, inspect the repository for the root-level audit files and the local debug-tools document under `llm-wiki/`.
+Before generic tool assumptions, inspect relevant repository-local audit guidance in this order when present:
 
-Check these files in order:
+1. `llm-wiki/debug-tools-security-audit.md`
+2. `llm-wiki/debug-tools.md`
+3. `security-audit-sast-addendum.md`
+4. generated `debug-tool-manifest.json` and `security-audit-tool-manifest.json`
+5. `tool-paths.env` / documented path overrides
+6. repository-provided discovery or audit scripts
 
-1. `llm-wiki/debug-tools-security-audit.md` — preferred local debug/binary/security-audit tool inventory
-2. `llm-wiki/debug-tools.md` — fallback or supplemental project-specific debugging/tool inventory
-3. `security-audit-sast-addendum.md` — root-level source SAST, secrets, dependency, and cross-platform tooling guidance
-4. `debug-tool-manifest.json` — generic debugger/developer-tool discovery evidence, if generated
-5. `security-audit-tool-manifest.json` — security-specific scanner/install evidence, if generated
-6. `tool-paths.env` — root-level local machine/project path overrides, if present
-7. `tool-paths.example.env` — merged generic + security documented path variables
-8. `tools/discover-debug-tools.ps1` — optional non-mutating Windows generic tool discovery helper
-9. `install-security-audit-tools.ps1` — optional root-level Windows security installer
-10. `install-security-audit-tools.sh` — optional root-level Linux/macOS installer/detector
-11. other relevant root-level audit files explicitly referenced by the project
+Treat these files as guidance and path evidence, not proof that a tool or artifact is usable. Resolve tools from generated manifests first, then local overrides, shell/PATH discovery, documented paths, and safe fallbacks. When a manifest records a tool path, use that exact path unless newer verified evidence supersedes it. Treat hardcoded documentation paths as examples unless explicitly mandatory. Never guess paths. If local guidance contains a `Security audit additions` section, apply it when relevant.
 
-Preference rules:
+Verify relevant tools and inputs before relying on them. If a documented path variable is unset, try documented relative discovery before warning. Missing tools, targets, binaries, dumps, symbols, logs, or other evidence are coverage limitations, not vulnerabilities by themselves; use a safe fallback when available, otherwise mark the evidence unavailable and lower only affected confidence/readiness or scores. Do not silently skip relevant project-documented tools or inputs. Surface material gaps in the Executive Summary, affected scorecard/finding notes, Production-Readiness Assessment, and Final Verification Checklist. For each material gap state what was unavailable, why it mattered, fallback used, evidence lost, and which scores/confidence were affected.
 
-- Prefer `debug-tools-security-audit.md` over `debug-tools.md` for security audits.
-- Use `security-audit-sast-addendum.md` to identify source-level static analysis, secrets scanning, dependency scanning, and non-Windows platform inspection tools.
-- Use `tool-paths.env` or documented environment variables to resolve project-local binaries, PDBs, symbols, logs, dumps, captures, build roots, and install roots.
-- Treat hardcoded paths in documentation as local examples unless explicitly declared mandatory for the current environment.
-- If a documented path variable is unset, attempt documented relative discovery before warning.
-- Warn only when a missing file, tool, path, platform, binary, dump, log, symbol directory, or diagnostic input materially reduces audit coverage.
-- Missing or unavailable expected coverage must be reflected in the Executive Summary, Security Scorecard notes, Security Production-Readiness Assessment, and Final Verification Checklist.
+Do not mutate global debugger/runtime/system state, install large or global tooling, upload source or sensitive artifacts, or run intrusive diagnostics unless explicitly authorized. Repository installers/detectors are optional; if used, verify their resulting manifests rather than assuming installation succeeded.
 
+Apply project-specific diagnostics only to matching subsystems. Missing DX12/DRED, GPU, media/capture, hook/overlay, or similar project-specific tooling must not affect unrelated projects; mark them N/A when inapplicable. Treat diagnostic logs/dumps/captures as sensitive, and do not treat diagnosis-only modes that alter timing or behavior as production security controls. For supported Linux/macOS targets, do not claim Windows-equivalent tooling coverage unless comparable evidence exists.
 
-### Local audit knowledge and tool-inventory documents
-
-Before starting the audit, inspect the repository for local audit knowledge under:
-
-- `llm-wiki/debug-tools-security-audit.md` — preferred when present
-- `llm-wiki/debug-tools.md` — fallback or supplemental local debug-tool inventory
-- `llm-wiki/*.md` — additional local audit guidance
-
-Treat these files as project-local audit guidance and tool inventories, not as authoritative proof that a tool is installed or usable.
-
-When `tools/discover-debug-tools.ps1` has been run, treat `debug-tool-manifest.json` as the first source of truth for generic debugger/developer-tool paths. When a security installer has been run, use `security-audit-tool-manifest.json` for security-specific scanner/install evidence. Do not assume that example paths in `llm-wiki/debug-tools-security-audit.md` are valid on the current machine.
-
-Tool path precedence:
-
-1. generated `debug-tool-manifest.json` for generic debugger/developer tools
-2. generated `security-audit-tool-manifest.json` for security-specific tools
-3. local `tool-paths.env`
-4. shell/PATH discovery such as `Get-Command`, `where`, or `command -v`
-5. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
-6. safe fallbacks
-
-On Windows, `install-security-audit-tools.ps1` delegates generic debugger/MSVC/LLVM/Sysinternals/FFmpeg path discovery to `tools/discover-debug-tools.ps1`; do not duplicate that path-generation logic in security-specific guidance.
-
-If `install-security-audit-tools.ps1` exists, it may be used to install or detect local audit tools. Running it is optional. On Windows, a no-argument run now opens an interactive wizard whose default confirmed profile is a comprehensive Full install, including large toolchains; use custom/minimal profiles or explicit CLI switches when those side effects are not appropriate. The audit must still verify resulting tool availability instead of assuming installation succeeded.
-
-
-If `llm-wiki/debug-tools-security-audit.md` exists, use it as the preferred security-audit tool inventory. If it does not exist, fall back to `llm-wiki/debug-tools.md`. If both exist, use `debug-tools-security-audit.md` as the primary source and `debug-tools.md` as supplemental project-specific debugging guidance. Use these files to identify available or expected debugging, binary-inspection, crash-analysis, media/capture-analysis, runtime-diagnostics, and platform-specific tools that may be useful for the audit. Prefer tools listed there when they fit the audit task.
-
-For Windows crash and binary inspection, `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` may define project-specific tools and paths such as:
-
-- `cdb.exe`, `windbg.exe`, `WinDbgX.exe`, and `dumpchk.exe` for `.dmp` analysis
-- `symchk.exe`, `dbh.exe`, `pdbcopy.exe`, and `symstore.exe` for symbol/PDB validation
-- `dumpbin.exe`, `link.exe /dump`, `lib.exe /list`, `undname.exe`, `llvm-objdump.exe`, and `llvm-strings.exe` for PE/COFF, object, symbol, import/export, section, disassembly, and strings inspection
-- Sysinternals tools such as `procdump.exe`, `procmon.exe`, `procexp.exe`, `vmmap.exe`, `handle.exe`, `listdlls.exe`, `sigcheck.exe`, and `strings.exe`
-- project-specific capture/media helpers such as `ffmpeg.exe` and `ffprobe.exe`
-- project-specific diagnostics such as DX12 DRED, DX12 debug layer, and always-on `DX12 DIAG:` log interpretation where applicable
-
-When crash dumps are analyzed on Windows, use the symbol-path guidance from `llm-wiki/debug-tools-security-audit.md` if present, otherwise from `llm-wiki/debug-tools.md` if present. In particular, do not use a Microsoft-symbol-server-only path when the project-local PDB directory is required for complete stack traces.
-
-Tool-inventory handling rules:
-
-- Check whether `llm-wiki/debug-tools-security-audit.md` exists before selecting crash, dump, symbol, binary, or runtime-diagnostic tools; if absent, check `llm-wiki/debug-tools.md`.
-- Check whether each relevant listed tool is actually available at the documented path before relying on it.
-- If a listed tool is missing, inaccessible, incompatible with the current platform, or fails to run, print a clear warning in the report.
-- If a tool is unavailable but a reasonable fallback exists, use the fallback and document the reduced coverage.
-- If no fallback exists, mark the affected evidence as unavailable, lower confidence, and reduce relevant scores.
-- If the audit environment cannot access the listed platform, architecture, binaries, dumps, logs, PDBs, symbols, or diagnostic tools, state this in the Executive Summary and affected findings.
-- Do not silently skip a potentially relevant local tool, dump, symbol directory, binary-inspection utility, or diagnostic log named in `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md`.
-- Do not mutate debug flags, global runtime settings, binaries, PDBs, registry settings, system settings, or project files unless implementation or intrusive diagnostics are explicitly requested.
-- Use mutation-capable tools, such as PE/COFF editing tools or global debug-flag tools, only with explicit intent and document the risk.
-
-Availability warnings must be visible in the final report. Include them in:
-
-- Executive Summary and Overall Security Rating
-- Security Scorecard notes for affected categories
-- Findings evidence or notes, where relevant
-- Security Production-Readiness Assessment
-- Final Verification Checklist
-
-Examples of warnings:
-
-```text
-WARNING: neither llm-wiki/debug-tools-security-audit.md nor llm-wiki/debug-tools.md was found; local project-specific audit tooling and symbol-path guidance were not available. Confidence in crash/binary inspection is reduced.
-WARNING: cdb.exe was listed in llm-wiki/debug-tools.md but was not available at the documented path; Windows dump analysis was not performed with the preferred debugger.
-WARNING: Local PDB directory from llm-wiki/debug-tools.md was unavailable; crash stack traces may be incomplete.
-WARNING: Linux ARM64 target is claimed as supported but no build, runtime, or binary-inspection evidence was available. Platform coverage score and confidence were reduced.
-```
-
+Strict prerequisite/coverage mode is opt-in. When explicitly requested, block deeper analysis only for missing tools or evidence that are actually required for the requested scope.
 
 ### Out of scope unless explicitly requested
 
-- CI/CD runner security and pipeline setup.
-- Cloud account configuration, hosting infrastructure, deployment, distribution, signing, notarization, app-store/release packaging, installers, SBOMs, provenance, attestation, release notes, incident response, on-call process, support process, and legal/commercial compliance beyond source-level licensing and security-relevant data handling.
+Hosted CI/CD administration, cloud/hosting configuration, deployment/distribution, signing/notarization, app-store/release packaging, installers, SBOM/provenance/attestation, release notes, incident response/on-call/support, and legal/commercial compliance beyond source-level licensing and security-relevant data handling. Do not score these areas.
 
-Do not score out-of-scope areas.
+## Audit priorities and method
 
----
-
-## Audit priorities
-
-Use code inspection, builds, tests, analyzers, dependency scanners, sanitizer/fuzzer output, runtime behavior, binary inspection, and manual review as available. If evidence is missing, state that clearly and lower confidence.
+Use code inspection, builds/tests, analyzers, dependency and secrets scanners, sanitizer/fuzzer output, runtime behavior, binary inspection, and manual review as applicable. Missing evidence lowers confidence; it is not a clean result.
 
 Prioritize:
-
-1. Critical security flaws, broken authentication, broken authorization, privilege escalation, exposed secrets, unsafe defaults, and reachable high-impact exploit paths.
-2. Injection, unsafe deserialization, path traversal, SSRF, XXE, command execution, unsafe dynamic loading, unsafe update/download behavior, and malicious file handling.
-3. Business-logic and authorization bugs that automated scanners and LLM reviewers are likely to miss.
-4. Privacy leaks, sensitive data exposure, insecure logging, weak redaction, telemetry leaks, token leaks, and unnecessary sensitive-data retention.
-5. Cryptographic misuse, weak randomness, insecure password/token handling, missing verification, broken TLS/certificate handling, and weak key lifecycle handling.
-6. Dependency vulnerabilities, risky transitive dependencies, unpinned dependencies, compromised supply-chain assumptions, and source-level license/security issues.
-7. Memory safety, native/FFI risks, resource exhaustion, denial-of-service, parser abuse, unbounded queues/caches/logs/tasks, retry storms, and unsafe concurrency.
-8. Missing compiler hardening, missing binary hardening, permissive warning posture, missing sanitizer coverage, and uninspected security-sensitive binaries.
-9. Missing or unavailable project-local audit knowledge, tool inventories, crash dumps, PDBs/symbols, binaries, logs, or platform-specific diagnostic tools that materially reduce audit coverage.
-10. Security regression gaps, missing abuse-case tests, missing malformed-input tests, missing auth/access-control tests, and missing fuzz targets for parser/protocol/file/network/deserialization code.
-11. Maintainability issues only when they materially increase security risk, make fixes unsafe, hide vulnerabilities, or weaken future review.
-12. Proposed security fixes that silently disable features, reduce central workflow correctness, create unacceptable performance regressions, or replace a vulnerability with a denial-of-service, availability, compatibility, or usability failure.
-13. Language/toolchain-specific gaps, especially unreviewed Rust `unsafe`/FFI, Go `unsafe`/cgo/races, C#/.NET native interop/reflection/dynamic loading, or C/C++ memory/ABI hardening that generic scanners do not adequately cover.
-
-Avoid low-value checklist output. Do not list every minor style concern. Group related minor issues. Recommend larger refactors only when they clearly reduce security risk.
-
----
-
-## Required security review methods
-
-Use the following methods where applicable. Treat missing or incomplete coverage as evidence that lowers confidence.
-
-
-### Security-specific use of `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md`
-
-When `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` contains a `Security audit additions` section, apply it during the audit.
-
-Use it to select and validate tools for:
-
-- PE/COFF hardening inspection
-- DLL search-order and sideloading review
-- embedded secrets and sensitive string scans
-- Authenticode, signer, hash, and trust validation
-- bundled dependency and local library inspection
-- crash-dump sensitivity and symbol/PDB completeness
-- Windows process mitigation policy
-- filesystem and registry tracing
-- network behavior inspection
-- Windows event-log correlation
-- project-specific DX12/DRED/debug-layer diagnostics, where applicable
-
-The audit report must warn when a relevant documented tool, target binary, crash dump, local PDB directory, symbol path, log, capture, or diagnostic input is unavailable.
-
-The warning must include:
-
-- what was unavailable
-- why it mattered
-- what fallback, if any, was used
-- what evidence was lost
-- which scorecard categories and confidence levels were affected
-
-Do not treat tool availability as a pass/fail security result. Treat it as audit coverage evidence.
-
-### Cross-platform audit-tool automation parity
-
-The audit must not give Windows-only tooling stronger coverage than Linux or macOS without saying so.
-
-When supported targets include Linux or macOS, use or provide equivalent tool-availability evidence for those platforms. Prefer the local detector scripts when present:
-
-- Windows: `install-security-audit-tools.ps1`
-- Linux/macOS: `install-security-audit-tools.sh`
-
-Both scripts should produce comparable evidence where possible:
-
-- tool manifest JSON
-- warnings file
-- Markdown availability report
-- tool paths
-- tool versions where available
-- SHA256 hashes for downloaded or inspected portable tools where practical
-- source URLs for downloaded tools
-- skipped or unavailable tool warnings
-- coverage impact notes
-
-If only Windows tool evidence exists while Linux/macOS are supported targets, lower confidence for platform/architecture coverage, binary inspection, and tooling categories.
-
-
-
-
-Default Windows tool setup should install portable, low-side-effect scanners where possible, while keeping Python/pip-based, large, noisy, package-manager-heavy, or project-specific tools opt-in.
-
-Default Windows installs may include:
-
-- `gitleaks`
-- `osv-scanner`
-
-Default Windows detection should include, but not install unless explicitly requested:
-
-- `semgrep`
-- `flawfinder`
-- `pip-audit`
-
-Default Windows setup should keep these opt-in:
-
-- `CodeQL`
-- `trufflehog`
-- WinDbg
-- LLVM
-- FFmpeg
-- GUI Sysinternals
-- Python/pip-based scanners unless explicitly requested
-- toolchain-native scanners that require Rust/Go/Node toolchains unless already present
-
-A detector-only setup may be requested with `-Minimal` or skip flags. Missing default-install tools should still be reflected in tool availability evidence and confidence.
-
-
-### Explicit tool-path resolution and coverage gates
-
-Auditors and LLM agents must not guess tool paths.
-
-When tool detector output exists, resolve tools in this order:
-
-1. generated `debug-tool-manifest.json` for generic debugger/developer tools
-2. generated `security-audit-tool-manifest.json` for security-specific scanner/install results
-3. `tool-paths.env`
-4. shell discovery such as `Get-Command`, `where`, `command -v`, or equivalent
-5. documented known-good paths in `llm-wiki/debug-tools-security-audit.md`
-6. safe fallback tools
-
-If a tool appears in the relevant manifest, use its recorded `path` exactly. Do not assume the tool is also on `PATH` unless the manifest or environment confirms it.
-
-Default coverage mode is advisory:
-
-- continue the audit
-- warn about missing applicable tools/artifacts
-- lower confidence
-- adjust affected scores
-
-
-Full setup mode may be requested for dedicated audit environments:
-
-```powershell
-.\install-security-audit-tools.ps1 -Full
-```
-
-Full mode is allowed to install large, package-manager, Python/pip-based, and project-specific diagnostic tools. Reports must identify that full mode was used and record any failed install attempts.
-
-Uninstall mode must be available for cleanup:
-
-```powershell
-.\install-security-audit-tools.ps1 -Uninstall
-```
-
-Shared package-manager installs and Python user packages should not be removed silently. Require explicit removal flags for shared packages and Python packages.
-
-
-Strict coverage mode is optional and must be requested explicitly. In strict mode, the audit should stop deeper analysis and produce a `Blocked` or prerequisite-failure report when required applicable tools, binaries, symbols, logs, dumps, platforms, or manifests are missing.
-
-Strict mode must not fail because optional or irrelevant tools are unavailable. Examples:
-
-- Missing DRED tools must not block a non-DX12 project.
-- Missing `pip-audit` must not block a non-Python project.
-- Missing `cargo-audit` must not block a non-Rust project.
-- Missing `procmon.exe` must not block unless runtime tracing is required for the audit question.
-
-If the user specifies required tools, enforce only those tools and any unavoidable prerequisites for the requested audit scope.
-
-
-### Project-specific diagnostics are conditional
-
-Local diagnostic guidance from `llm-wiki/debug-tools-security-audit.md` is conditional project-specific evidence, not a universal security-audit requirement.
-
-Examples include DX12/DRED/debug-layer diagnostics, media/capture tooling, GPU fault analysis, hook DLL inspection, overlay diagnostics, or other project-specific runtime instrumentation.
-
-Apply such guidance only when the audited project actually contains matching components, features, binaries, logs, dumps, captures, runtime behavior, or supported platforms.
-
-Rules:
-
-- Do not require DX12, DRED, D3D12 debug-layer, capture/media, hook, overlay, or GPU-device-removal diagnostics for unrelated projects.
-- Mark project-specific diagnostics as `N/A — not applicable` when the project does not contain the corresponding subsystem.
-- Do not reduce score or confidence for missing project-specific diagnostics unless the subsystem is in scope and relevant evidence is unavailable.
-- If project-specific diagnostics are relevant but unavailable, warn, explain what coverage was lost, and lower only the affected categories.
-- Treat project-specific logs, dumps, captures, DRED output, debug-layer output, and runtime traces as sensitive artifacts.
-- Diagnosis-only modes that change timing or behavior must not be treated as production security controls.
-
-
-### Project-local tool discovery and availability validation
-
-Before using generic tool assumptions, inspect `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` and other relevant `llm-wiki/*.md` files.
-
-For each relevant listed tool or artifact, record:
-
-- expected path or invocation
-- purpose
-- whether it exists
-- whether it can run in the current environment
-- whether the current platform/architecture matches the tool
-- whether required inputs are available, such as dumps, binaries, PDBs, symbols, logs, captures, or repro files
-- fallback used, if any
-- coverage lost if unavailable
-
-Unavailable tools, symbols, binaries, dumps, or logs are not automatically findings unless they materially reduce security assurance. They must still be disclosed in the summary, scorecard notes, and readiness assessment.
+1. reachable Critical/High flaws: broken authentication/authorization/tenancy, privilege escalation, exposed secrets, unsafe defaults, injection/RCE, severe privacy or memory-safety issues, and high-blast-radius paths
+2. business-logic/workflow authorization bugs and unsafe state transitions
+3. cryptography, token/key/TLS handling, privacy/logging, dependency and supply-chain risk
+4. parser/filesystem/network/native/FFI/concurrency/resource-exhaustion and abuse-resistance issues
+5. missing hardening or validation that materially weakens release assurance
+6. maintainability only when it materially increases security risk or makes fixes unsafe
+
+Separate discovery from findings. Validate reachability, preconditions, mitigations, and actual behavior before reporting material findings. Treat scanner and LLM output as leads until verified against source/runtime evidence. Group shared-root-cause minor issues and avoid cosmetic checklist findings.
 
 ### Security-fix non-regression review
 
-When reviewing or planning fixes, verify that proposed mitigations do not silently regress product behavior.
+When proposing mitigations:
+- fix the root cause rather than hiding the symptom
+- preserve intended features, contracts, persisted formats, supported platforms, and central workflows unless the existing behavior is unsafe
+- do not trade confidentiality/integrity for avoidable availability, compatibility, data-loss, usability, or material performance regressions
+- do not disable features, protocols, plugins, diagnostics, acceleration, or platform support as the default fix unless explicitly justified and accepted
+- require validation of both the security issue and preserved legitimate behavior
 
-A valid security fix should:
-
-- fix the root cause, not only hide the symptom
-- preserve intended features, central workflows, APIs, file formats, ABI expectations, configuration formats, persisted data, user-visible behavior, and integration contracts unless the current behavior is itself unsafe
-- preserve reasonable performance, resource use, latency, throughput, binary size, startup time, and energy behavior for affected workflows
-- avoid replacing a confidentiality/integrity issue with an availability, data-loss, compatibility, or usability failure
-- avoid disabling features, code paths, plugins, protocols, platform support, diagnostics, or acceleration paths as the default “fix” unless that is explicitly justified and accepted
-- keep secure behavior fail-closed where appropriate, without turning normal valid input or common workflows into avoidable failures
-- include regression tests for both the security issue and the preserved legitimate behavior
-
-Feature disablement is acceptable only when one of the following is true:
-
-- the feature is inherently unsafe and cannot be made safe within the release window
-- the feature is unused, unsupported, deprecated, or already documented as unsafe/experimental
-- the feature is placed behind an explicit opt-in, admin-controlled, or compatibility flag with clear documentation
-- the user explicitly requests disabling the feature as the mitigation
-- the release is blocked and temporary disablement is documented as an emergency mitigation with follow-up work
-
-If a fix intentionally changes behavior or performance, the report must state:
-
-- what changed
-- why the change is necessary
-- who or what workflows are affected
-- whether the change is temporary or permanent
-- what alternatives were considered
-- how feature, compatibility, and performance regressions were tested
-- whether affected users need migration guidance or configuration changes
+If a proposed fix intentionally changes behavior, compatibility, or material performance, state the change, affected workflows, rationale, alternatives, migration/configuration impact, and how the tradeoff was validated.
 
 ### Compiler, linker, and runtime process hardening
 
@@ -773,24 +485,11 @@ Prefer:
 
 ## Recommendation limit
 
-The final report must contain **no more than 15 total fix/improvement recommendations**.
-
-Count every finding with a recommended fix as one recommendation.
-
-To stay within the limit:
-
-- Include all Critical and release-blocking High findings first.
-- Then include the highest-risk Medium findings.
-- Group related Low/Informational items under one recommendation only if they share the same root cause and fix.
-- Omit cosmetic, speculative, or low-impact recommendations unless no higher-value issue exists.
-- If more than 15 material issues exist, add a short “Deferred lower-priority issues” note listing omitted themes without detailed recommendations.
-
----
+The final report must contain no more than **15 total fix/improvement recommendations**. Include all Critical and release-blocking High findings first, then the highest-risk remaining findings. Group Low/Informational items only when they share root cause and remediation. Put additional validated issues in a concise deferred table.
 
 ## Output requirements
 
-The report must contain exactly these sections:
-
+The report must contain exactly:
 1. Executive Summary and Overall Security Rating
 2. Security Scorecard
 3. Findings and Recommendations
@@ -799,65 +498,15 @@ The report must contain exactly these sections:
 6. Implementation Rules
 7. Final Verification Checklist
 
----
-
 # 1. Executive Summary and Overall Security Rating
 
-Include:
+Include the audited target/ref and coverage, verdict, weighted score, confidence, top risks/blockers, material authentication/authorization/business-logic/privacy/secrets/crypto/dependency/runtime/native/binary/domain risks, manual and automated review coverage, relevant local-tool/evidence gaps, high-assurance posture where applicable, major non-regression concerns, and out-of-scope areas not scored.
 
-- Verdict: Ready to ship / Ready to ship with minor fixes / Not ready to ship / Blocked
-- Total weighted score
-- Confidence: High / Medium / Low
-- Top 5 security risks
-- Release blockers
-- Main authentication, authorization, data exposure, secrets, cryptography, dependency, binary, runtime, and domain-specific blockers as applicable
-- Highest-blast-radius risks
-- Technical debt that materially affects security
-- Regression-hardening assessment
-- Manual business-logic and authorization review status
-- Static-analysis, dynamic-analysis, fuzzing, and LLM-assisted-review status
-- Local `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` availability and relevant tool availability warnings
-- High-assurance component posture, where applicable
-- Whether recommended fixes preserve intended features, central workflows, compatibility, and performance
-- Whether larger refactors are justified
-- Main recommended next phase
-- Which expected local tools, binaries, dumps, symbols, logs, targets, or diagnostic inputs were unavailable
-- What was not assessed and how that affects confidence
-- Note that out-of-scope CI/deployment/signing/packaging/infrastructure/distribution/operational-process criteria were not scored
-
----
+Verdict values: **Ready to ship / Ready to ship with minor fixes / Not ready to ship / Blocked**.
 
 # 2. Security Scorecard
 
-Score each applicable category from 0 to 10.
-
-Calibration:
-
-- 10 excellent
-- 9 very good
-- 8 good
-- 7 acceptable
-- 6 marginal
-- 5 risky
-- 4 poor
-- 3 very poor
-- 2 critical weakness
-- 1 nearly broken/unsafe
-- 0 broken/unsafe/unassessable
-- N/A not applicable
-
-Rules:
-
-- Use integers or one decimal place only.
-- Use N/A only when genuinely not applicable.
-- If applicable but not fully assessed, assign a score and lower confidence.
-- Do not give high scores to security, privacy, dependency, build-hardening, or binary-quality categories without concrete evidence.
-- If generated binaries are in scope but were not built or inspected, lower confidence in binary and build-hardening scoring.
-- If high-blast-radius behavior is central but not assessed, lower confidence and score affected categories accordingly.
-- If business-logic or authorization review is central but not performed, lower confidence and score affected categories accordingly.
-- If parser/protocol/file/network/deserialization code is central but lacks fuzzing or malformed-input tests, lower confidence and score affected categories accordingly.
-- If `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` exists but relevant listed tools, symbols, dumps, logs, binaries, or platform targets are unavailable, lower confidence and score affected categories accordingly.
-- If `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` contains security-specific tool guidance but relevant checks are skipped, unavailable, or unsupported in the audit environment, lower confidence and affected scores accordingly.
+Score each applicable category 0–10 using integers or one decimal place. Use `N/A` only when genuinely inapplicable. If an applicable area is incompletely assessed, score the observed state and lower confidence rather than treating missing evidence as a pass. High scores require concrete evidence. In particular, lower affected confidence/scores when central business-logic/authorization review, parser/fuzz coverage, required release-binary inspection, or supported platform/architecture evidence is missing.
 
 | Category | Weight | Score | Confidence | Notes |
 |---|---:|---:|---|---|
@@ -873,39 +522,25 @@ Rules:
 | Dependency, supply-chain, and source-level licensing risk | 6% | | | |
 | Runtime reliability, DoS resistance, concurrency, and resource safety | 6% | | | |
 | Compiler/linker hardening, binary hardening, native/FFI safety, and platform/architecture coverage | 5% | | | |
-| Static analysis, SAST/secrets/dependency coverage, sanitizer coverage, fuzzing, local audit-tool availability, and security tooling | 4% | | | |
+| Static/dynamic analysis, fuzzing, local audit-tool availability, and security tooling | 4% | | | |
 | Security tests, regression hardening, and quality gates | 4% | | | |
 | GUI/UI high-blast-radius safety, if applicable | N/A or adjusted | | | |
 | Domain-specific safety/failsafes, if applicable | N/A or adjusted | | | |
 | High-assurance component design, if applicable | N/A or adjusted | | | |
 
-If GUI/UI, domain safety, or high-assurance component safety is central, assign positive weight and reduce less relevant weights so total remains 100%.
+If GUI/UI, domain safety, or high-assurance component safety is central, assign positive weight and reduce less relevant weights so the total remains 100%.
 
-Weighted total:
+Weighted total = `sum(score × applicable positive weight) / sum(applicable positive weights)`. Show brief arithmetic.
 
-`sum(score × weight for non-N/A positive-weight categories) / sum(applicable positive weights)`
-
-Show brief arithmetic.
-
-## Verdict rules
-
-- **Ready to ship:** no Critical or High blockers; source build/test/binary path sufficiently verified; remaining security risks minor and acceptable.
-- **Ready to ship with minor fixes:** no Critical blockers; any High issues are narrow, understood, and not release-blocking.
-- **Not ready to ship:** unresolved High blocker, multiple meaningful Medium issues, or insufficient confidence in security, privacy, testing, build, binary, dependency, reliability, memory, central workflow, business-logic, authorization, or domain-safety posture.
-- **Blocked:** Critical blocker, exposed secret, broken auth/access control, severe privacy leak, exploitable injection, unsafe deserialization, severe data loss/security/safety risk, major memory corruption, high-confidence reachable crash in a security-sensitive path, broken central security workflow, unsafe high-blast-radius behavior, or missing essential source prerequisite.
-
----
+Verdict guidance:
+- **Ready to ship:** no Critical or High blockers; source/build/test/artifact paths and release-critical security behavior are sufficiently verified.
+- **Ready to ship with minor fixes:** no Critical blocker; any High issue is narrow, understood, and not release-blocking.
+- **Not ready to ship:** an unresolved High blocker, multiple meaningful Medium issues, or insufficient confidence in a release-critical security area.
+- **Blocked:** a Critical blocker or missing essential source/evidence/prerequisites prevents a meaningful release assessment.
 
 # 3. Findings and Recommendations
 
-Include no more than 15 findings/recommendations total.
-
-Use deterministic IDs:
-
-- `F-[CATEGORY_NUMBER]-[SEQUENTIAL_NUMBER]`
-- Example: `F-04-001`
-
-Each finding must use exactly this format:
+Use deterministic IDs `F-[CATEGORY_NUMBER]-[SEQUENTIAL_NUMBER]`. Each finding must contain:
 
 ```text
 ID:
@@ -926,235 +561,46 @@ Evidence:
 Notes:
 ```
 
-For each finding with a recommended fix, the `Implementation guidance`, `Suggested tests`, or `Notes` field must identify any expected feature, compatibility, or performance impact. If the fix disables behavior, removes support, blocks valid input, adds meaningful latency, increases resource use, or changes user-visible behavior, state that explicitly and justify it.
+Evidence should identify concrete source/artifact locations and relevant reproduction, build/test/analyzer/sanitizer/fuzzer/scanner/dependency/binary/runtime/manual-review results. If evidence is unavailable, say so and lower confidence; do not promote an unverified concern into a material confirmed finding.
 
-Evidence must be concrete where available:
-
-- File paths
-- Functions/classes/modules
-- Commands
-- Build output
-- Test output
-- Static-analysis output
-- Sanitizer output
-- Fuzzer output
-- Dependency advisory output
-- Secrets-scanning output
-- Binary-inspection output
-- Per-platform build/test/runtime/binary-inspection output
-- Local `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` tool-inventory checks
-- Tool availability or unavailability checks
-- Symbol/PDB availability checks
-- Crash dump, binary, log, or diagnostic input availability checks
-- Runtime behavior
-- GUI/UI behavior
-- API behavior
-- Security control behavior
-- Manual authorization/business-logic review result
-- LLM-assisted-review result, only after human/source verification
-- Explicit absence of coverage
-
-If unavailable, write `Evidence unavailable` and lower confidence.
-
-## Severity guidance
-
-- **Critical:** exposed secrets, authentication bypass, authorization bypass, tenant isolation break, privilege escalation, remote code execution, arbitrary file read/write/delete, severe privacy leak, exploitable memory corruption, unsafe update/download path, unsafe system/device/domain state, severe data loss, or unsafe high-blast-radius behavior.
-- **High:** serious but bounded security, privacy, dependency, cryptography, injection, filesystem, parser, binary, runtime, business-logic, or access-control issue.
-- **Medium:** real security issue that should be fixed but is not immediately blocking.
-- **Low:** localized cleanup, minor hardening, minor policy gap, small unsafe pattern with limited exposure.
-- **Informational:** observation or tradeoff with no required fix.
-
----
+For each recommended fix, state any meaningful feature, compatibility, platform, resource, latency, or user-visible impact. Severity reflects supported impact and likelihood, not the mere presence of native code, `unsafe`, reflection, FFI, or a missing optional mitigation.
 
 # 4. Security Production-Readiness Assessment
 
-Answer directly:
+State whether the project is security-ready to ship, what must be fixed before shipping, what can follow or defer, residual risks, material coverage gaps, central/high-risk components, and areas that appear acceptable. Explicitly note any proposed mitigation that removes behavior or imposes a compatibility/performance tradeoff.
 
-- Is the project production-ready from a security perspective?
-- Is it ready to ship?
-- What must be fixed before shipping?
-- What authentication, authorization, tenancy, business-logic, injection, secrets, privacy, cryptography, dependency, compiler-hardening, binary, runtime, feature/UI, high-assurance, and domain-specific risks must be fixed before shipping?
-- What should be fixed soon after shipping?
-- Do proposed fixes preserve intended features, central workflows, platform support, compatibility, and performance?
-- Are any proposed fixes actually feature disablement, behavior removal, or performance tradeoffs that require explicit acceptance?
-- What can be deferred?
-- What risks remain after fixes?
-- Which components are central, fragile, high-risk, under-tested, parser-sensitive, native/FFI-sensitive, network-sensitive, security/privacy-sensitive, binary-sensitive, GUI/UI-sensitive, platform-sensitive, domain-sensitive, or high-assurance-sensitive?
-- Which areas appear acceptable and should not be changed unnecessarily?
-- Which scanner, sanitizer, fuzzer, LLM-review, manual-review, platform, and architecture coverage gaps most affect confidence?
-- Which local tool-inventory, debugging-tool, binary-inspection-tool, symbol/PDB, dump, log, and diagnostic-input gaps most affect confidence?
-- Which project-specific diagnostics were applicable, which were N/A, and which unavailable relevant diagnostics affected confidence?
-
-Do not assess out-of-scope release, deployment, packaging, signing, infrastructure, distribution, or operational-process readiness unless asked.
-
----
+Do not assess out-of-scope deployment, signing, packaging, infrastructure, distribution, or operational-process readiness unless requested.
 
 # 5. Implementation Plan
 
-Provide a practical phased plan for a later coding agent. Keep it tied to the selected findings only.
-
-For each phase include:
-
-- Related finding IDs
-- Tasks
-- Benefit
-- Risk
-- Affected files/modules/binaries
-- Dependencies
-- Validation
-- Feature, compatibility, and performance non-regression checks
-- Release requirement
-- Implementation order
-
-Use these phases only as applicable:
-
-## 0. Safety and Baseline
-
-Capture build/test/analyzer/binary-inspection/runtime baselines; inspect `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` and relevant `llm-wiki/*.md` files; validate availability of relevant local tools, binaries, dumps, logs, symbols, and platform targets; identify critical security paths and high-risk code; avoid behavior-changing refactors until validation exists.
-
-## 1. Release Blockers
-
-Fix Critical and release-blocking High findings first.
-
-## 2. Authentication, Authorization, Business Logic, and Data Protection
-
-Fix auth/session issues, access-control flaws, tenancy breaks, privilege-boundary weaknesses, workflow/state-machine abuse paths, sensitive-data exposure, privacy leaks, and unsafe persistence.
-
-## 3. Injection, Parser, Filesystem, and Network Hardening
-
-Fix unsafe input handling, injection, deserialization, path traversal, SSRF, XXE, archive extraction, command execution, redirects, webhooks, CORS, CSRF, request parsing, and outbound request restrictions.
-
-## 4. Cryptography, Secrets, and Dependency Risk
-
-Fix cryptographic misuse, weak randomness, token/key handling, TLS/certificate handling, exposed secrets, vulnerable dependencies, risky transitive dependencies, and lockfile inconsistencies.
-
-## 5. Compiler, Runtime, Binary, and Native/FFI Hardening
-
-Fix missing warning coverage, unsafe suppressions, missing sanitizer coverage, missing hardening flags, unsafe native/FFI boundaries, platform/architecture portability risks, binary hardening gaps, unsafe loader paths, symbol/debug leakage, missing preferred inspection-tool coverage, missing symbol/PDB handling, and security-sensitive crash paths.
-
-## 6. Runtime Abuse Resistance
-
-Fix denial-of-service risks, unbounded resource use, unsafe concurrency, retry storms, cancellation/shutdown bugs, crash-prone security paths, and malformed-input failure modes.
-
-## 7. Security Regression Hardening
-
-Add targeted tests, abuse-case tests, malformed-input tests, auth/access-control tests, business-logic tests, privacy/logging tests, sanitizer/static-analysis/fuzzer coverage, dependency checks, binary-inspection checks, and central workflow tests.
-
-## 8. High-Assurance Component Hardening
-
-For high-assurance components, reduce trusted unsafe/native surface area, formalize invariants, add property/model tests where useful, and document assumptions that must remain true for security.
-
-## 9. Architecture and Maintainability
-
-Reduce duplication, fragile boundaries, unsafe abstractions, dead code, diagnostic leftovers, and avoidable complexity only where justified by security risk reduction.
-
-## 10. Final Validation
-
-Rerun relevant tests, builds, analyzers, sanitizer/fuzzer checks, binary inspection, dependency checks, manual authorization/business-logic review, LLM-assisted review where useful, and central runtime/GUI/domain-safety validations.
-
----
+Group selected findings into the fewest applicable phases, ordered by severity and dependency. Preserve this phase taxonomy when relevant: **0 Safety/Baseline; 1 Release Blockers; 2 Authentication/Authorization/Business Logic/Data Protection; 3 Injection/Parser/Filesystem/Network; 4 Cryptography/Secrets/Dependencies; 5 Compiler/Runtime/Binary/Native-FFI; 6 Runtime Abuse Resistance; 7 Security Regression Hardening; 8 High-Assurance Components; 9 Architecture/Maintainability; 10 Final Validation**. Omit empty phases. For each included phase state finding IDs, tasks, affected files/modules/artifacts, dependencies, validation, non-regression checks, release requirement, and order.
 
 # 6. Implementation Rules
 
-When implementing fixes later:
-
-- Make the smallest safe change that fixes the root cause.
-- Preserve behavior, APIs, file formats, config formats, ABI expectations, user-visible behavior, GUI behavior, and integration contracts unless current behavior is wrong or unsafe.
-- Do not disable, remove, or degrade supported features as a security fix unless explicitly justified, documented, and accepted.
-- Do not replace a security issue with an avoidable availability, performance, compatibility, data-loss, or usability regression.
-- Preserve central workflow performance unless the security fix requires a measured and accepted tradeoff.
-- Measure or test performance-sensitive fixes when they affect hot paths, startup, shutdown, rendering, networking, parsing, storage, concurrency, binary size, memory use, or battery/energy use.
-- If temporary feature disablement is used as an emergency mitigation, document the rollback plan, owner, follow-up fix, and user-visible impact.
-- Refactor only when it reduces security risk, duplication, fragility, or long-term maintenance cost.
-- Do not add features unless required for security, privacy, correctness, reliability, production-readiness, maintainability, accessibility/i18n where applicable, cost control, domain safety, binary quality, or regression prevention.
-- Preserve useful optional debug logging; remove or isolate only diagnostics that are harmful, unsafe, stale, noisy, production-invasive, or likely to leak sensitive data.
-- Fix warning/analyzer/sanitizer/compiler/linker root causes instead of suppressing them. Suppress only narrowly, with justification.
-- Prefer safe APIs, explicit bounds checks, checked arithmetic, bounded queues, bounded concurrency, backpressure, rollback, safe defaults, and explicit ownership/lifetime models.
-- Prefer memory-safe designs for high-assurance and high-blast-radius components. Keep trusted C/C++/unsafe/FFI surface area small, explicit, and heavily tested.
-- Do not treat Rust, Go, C#, Java, or other memory-safe/managed languages as automatically high-assurance; review unsafe/native/FFI, reflection/dynamic loading, concurrency, dependency, parser, authorization, and runtime-specific risks explicitly.
-- For mixed-language systems, test both sides of every FFI/native boundary for ownership, lifetime, allocator, error, exception/panic/unwind, threading, encoding, structure-layout, and ABI assumptions.
-- Treat parser, native/FFI, unsafe, concurrency, service/daemon, dynamic-loading, privileged, GUI high-blast-radius, authentication, authorization, tenancy, business-logic, and domain-sensitive code as high-risk until validated.
-- Do not hide crashes without fixing corrupted state, unsafe behavior, or the root cause.
-- Preserve or improve generated-binary hardening and crash diagnosability.
-- Every fix must have validation, preferably an automated regression test.
-- Check local `llm-wiki/` audit guidance before assuming generic debugging, binary-inspection, crash-analysis, or diagnostic commands.
-- Prefer project-documented diagnostic tools and symbol paths when applicable, but verify that they exist and run before relying on them.
-- Warn when a relevant project-documented tool, symbol path, dump, binary, log, or target platform is unavailable.
-- Do not close a security finding with only a comment, note, or claim that the code was reviewed unless automated validation is genuinely impractical and a manual verification procedure is documented.
-
----
+For later fixes:
+- make the smallest safe root-cause change
+- preserve intended behavior, APIs, formats, ABI/configuration/persistence contracts, supported platforms, and central workflows unless they are themselves unsafe
+- do not substitute feature disablement, broad suppression, or avoidable performance/availability regressions for a real fix
+- keep refactors tied to a selected finding or material security-risk reduction
+- preserve useful diagnostics and generated-binary hardening; keep suppressions narrow and justified
+- treat regression coverage and diagnosability as first-class fix requirements: validate each non-trivial fix with the original reproducer/abuse case and a focused automated regression test when practical; if omitted, state why
+- add or preserve high-signal diagnostics when recurrence would otherwise be materially hard to diagnose, without leaking secrets or sensitive data
+- measure performance-sensitive fixes when they affect hot paths, startup/shutdown, networking/parsing/storage/concurrency, resource use, binary size, or energy use
+- if temporary feature disablement is used as an emergency mitigation, document its scope, rollback plan, owner, follow-up fix, and user-visible impact
+- recheck affected unsafe/native/FFI, parser, concurrency, privilege, auth, tenancy, dynamic-loading, and other high-blast-radius boundaries
 
 # 7. Final Verification Checklist
 
-Verify, where applicable:
+Report `Passed / Failed / Partial / Not run / N/A`, evidence, and limitations for the applicable areas below:
 
-- Clean checkout builds successfully.
-- `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md` and relevant `llm-wiki/*.md` files were checked before selecting debugging, crash-analysis, binary-inspection, and runtime-diagnostic tools.
-- Relevant project-documented tools were checked for existence and usability.
-- Missing, inaccessible, incompatible, or failed project-documented tools are warned about in the report.
-- Required dumps, binaries, symbols/PDBs, logs, captures, reproducers, and diagnostic inputs are available or explicitly marked unavailable.
-- Missing preferred tools or inputs are reflected in confidence and affected scores.
-- Project-specific diagnostics, including DX12/DRED/debug-layer guidance, were applied only when the corresponding subsystem was in scope; otherwise they were marked N/A without scoring penalty.
-- `security-audit-sast-addendum.md` was checked when present.
-- SAST, secrets scanning, and dependency scanning were run or explicitly marked unavailable/not applicable with confidence impact.
-- Linux/macOS tool availability was captured with comparable evidence to Windows when those targets are supported.
-- Hardcoded local paths in documentation were treated as examples unless confirmed as required for the current audit environment.
-- Documented path variables from `tool-paths.env` or `tool-paths.example.env` were used before warning about missing local artifacts.
-- Security-specific guidance in `llm-wiki/debug-tools-security-audit.md` or `llm-wiki/debug-tools.md`, including PE hardening, DLL sideloading, signatures, strings/secrets, dependency inventory, dump sensitivity, runtime mitigations, filesystem/registry tracing, network inspection, and event-log checks, was applied where relevant.
-- Any skipped or unavailable security-specific local-tool checks are listed with impact on evidence, score, and confidence.
-- Each supported target is built, tested, and inspected separately: Windows x64, Windows ARM64, Linux x64, Linux ARM64, macOS x64, macOS ARM64, and macOS universal binaries where shipped.
-- Unsupported targets are explicitly marked `N/A — not a supported target`.
-- Platform-specific path handling, Unicode behavior, shell/subprocess behavior, dynamic library loading, permissions, IPC, credential storage, and runtime dependency assumptions are validated where relevant.
-- Architecture-specific pointer size, integer width, alignment, atomics, SIMD/CPU feature, ABI, and binary-format assumptions are validated where relevant.
-- Tests pass and central security workflows are validated.
-- Security fixes preserve intended features, central workflows, APIs, configs, persisted formats, platform support, and integration contracts unless a breaking change is explicitly justified.
-- Security fixes do not silently disable features, diagnostics, acceleration paths, plugins, protocols, or supported platforms as a substitute for fixing the root cause.
-- Performance-sensitive fixes are checked for regressions in latency, throughput, startup, shutdown, rendering/frame timing, network behavior, memory use, CPU use, binary size, and energy/battery use where relevant.
-- Any intentional behavior removal, feature disablement, compatibility break, or performance tradeoff is documented, justified, accepted, and covered by follow-up work where needed.
-- Authentication and session flows are validated.
-- Authorization, tenant isolation, object ownership, and privilege-boundary checks are validated.
-- Business-logic and state-transition rules are manually reviewed and tested for abuse cases.
-- Admin, debug, internal, and privileged interfaces are protected.
-- No known exploit reproducer still succeeds unless explicitly accepted with rationale.
-- No known crash reproducer still crashes in a security-sensitive path unless explicitly accepted with rationale.
-- Every production language/toolchain has explicit language-specific audit coverage; no language was treated as secure solely because it is memory-safe or managed.
-- C/C++ native code has warning, sanitizer, fuzzing, ownership/lifetime, integer, API, concurrency, and emitted-binary hardening coverage appropriate to the target.
-- Rust crates have `unsafe`/FFI inventory and invariant review, Clippy/lint coverage, dependency advisory coverage, release-overflow/panic-boundary review, fuzzing for exposed boundaries, and native-binary inspection where applicable.
-- Go modules have `go vet`, `govulncheck`, race-detector coverage where supported, fuzzing for exposed boundaries, `unsafe`/cgo/assembly review, module-integrity review, and release-binary inspection.
-- C#/.NET projects have analyzer/nullability posture review, NuGet transitive vulnerability audit, unsafe/PInvoke/native-handle review, reflection/dynamic-loading/deserialization review, JIT-vs-Native-AOT/runtime-code-generation assessment, and publish-artifact/runtime hardening inspection.
-- Mixed-language FFI boundaries are validated for ABI, ownership, lifetime, allocation/deallocation, error translation, unwind/exception/panic behavior, threading, encoding, and structure layout.
-- Compiler warning settings and hardening choices are documented and justified.
-- Windows release processes were checked for effective DEP/NX, applicable permanent DEP semantics, ASLR/high-entropy ASLR, Dynamic Code policy, Strict Handle Checks, Extension Point Disable, CFG, `/GS`, and applicable EHCONT/CET hardware stack protection; incompatible mitigations are explicitly justified instead of silently omitted.
-- Windows PE inspection distinguishes compile/link metadata from runtime process-mitigation state, and all shipped security-sensitive EXEs/DLLs are covered or explicitly marked unavailable.
-- Linux ELF hardening was checked for PIE, full RELRO/NOW, NX `PT_GNU_STACK`, absence of unintended `RWE` segments/`DT_TEXTREL`, strong stack protection, stack-clash protection where supported, and architecture-appropriate CET/BTI/PAC/GCS or other CFI evidence.
-- Linux runtime hardening distinguishes direct equivalents from nearest analogues: ASLR host settings are not inferred from PIE alone; MDWE/W^X is checked where dynamic code should be prohibited; no false "strict handle checks" or "extension-points disabled" equivalence is claimed.
-- Static-analysis findings are resolved, justified, or documented as false positives.
-- Sanitizer findings are resolved or justified.
-- Fuzzing exists for parser, protocol, file-format, networking, deserialization, decoder/encoder, archive, and boundary-heavy code where relevant.
-- Fuzzer crashes have minimized reproducers and regression tests.
-- LLM-assisted review, if used, has been treated as advisory and verified against code/runtime evidence.
-- Input handling covers malformed, oversized, truncated, corrupted, deeply nested, missing-field, invalid-config, permission, disk-full, network, dependency, subprocess, cancellation, shutdown, restart, and resource-exhaustion paths where relevant.
-- Injection-sensitive paths are validated against SQL/NoSQL injection, command injection, template injection, header injection, log injection, path traversal, SSRF, XXE, unsafe redirects, unsafe deserialization, and unsafe archive extraction where relevant.
-- Secrets are not present in source, generated files, logs, telemetry, crash reports, metrics, traces, URLs, CLI args, env vars, local files, caches, or binaries unless explicitly required and protected.
-- Logs, telemetry, crash reports, metrics, traces, errors, URLs, CLI args, env vars, and generated artifacts do not leak sensitive data.
-- Cryptography and TLS behavior are validated, including certificate verification, signature verification, key handling, token handling, password handling, randomness, and downgrade behavior where relevant.
-- Filesystem and persistence behavior is safe against path traversal, symlink/hardlink races, unsafe temp files, unsafe archive extraction, unsafe overwrite/delete, partial writes, corrupted state, unsafe permissions, and disk exhaustion where applicable.
-- Network and API behavior is safe against unsafe CORS, CSRF, webhook spoofing, SSRF, unsafe redirect following, request smuggling-sensitive parsing, replay issues, and unauthenticated privileged access where applicable.
-- Concurrency and lifecycle behavior has no known races, deadlocks, livelocks, unsafe reentrancy, callback-after-destroy, async lifetime bugs, retry storms, or unsafe shutdown behavior.
-- Parser, decoder, deserializer, importer, archive, protocol, plugin, and file-format handling is tested against malicious or malformed inputs where applicable.
-- Generated binaries are inspected for hardening, symbols, dynamic dependencies, embedded paths/secrets, unsafe loader paths, executable stack, writable-executable sections, ABI/architecture compatibility, CPU assumptions, bloat, and debug/release differences where applicable.
-- High-assurance components have minimized trusted unsafe/native surface area, documented invariants, targeted adversarial tests, and fail-closed behavior where relevant.
-- GUI/UI critical flows are validated for state synchronization, validation, disabled/enabled states, repeated clicks, cancellation, navigation, partial save, rollback, and high-blast-radius actions where applicable.
-- Domain-specific safety is validated for safe defaults, rollback, recovery, persistence, restart behavior, rate limits, idempotency, and high-blast-radius actions where applicable.
-- Dependencies and source-level licensing are acceptable.
-- Public APIs, configs, persisted formats, feature flags, encoding/Unicode/locale behavior, platform expectations, and source-tree docs remain accurate and compatible unless a justified breaking change was made.
-- Unavailable local tools, binaries, dumps, symbols, logs, platform targets, and diagnostic inputs are listed with their impact on coverage, confidence, and scoring.
-- Out-of-scope CI/CD/signing/deployment/packaging/installer/infrastructure/distribution/operational-process checks were not scored unless requested.
+- supported release targets/configurations and central security workflows
+- known exploit/crash reproducers and selected findings
+- relevant language/toolchain checks defined above, including unsafe/native/FFI boundaries
+- authentication, authorization, tenancy, business logic, sensitive-data handling, cryptography, injection/parser/filesystem/network risks implicated by the target
+- static/dynamic analysis, dependency/secrets scanning, fuzzing, malformed-input and abuse-case coverage where applicable
+- release binaries/artifacts: hardening, loader/dependency behavior, embedded sensitive data, target/ABI compatibility, and runtime mitigation evidence where applicable
+- regression/non-regression validation for proposed fixes
+- unavailable tools, targets, symbols, binaries, logs, dumps, or other evidence and their effect on coverage/confidence
+- confirmation that project-specific diagnostics were applied only to matching subsystems and out-of-scope operational areas were not scored
 
-- Project-specific diagnostics such as DX12/DRED/debug-layer checks are scored only when the corresponding subsystem is in scope; otherwise mark them N/A and do not penalize.
-
-Full-mode tool detection must distinguish install failure from already-installed or no-upgrade package-manager states. If a package manager returns a non-zero code, verify package presence before warning.
-
-After package-manager installs, do not rely only on the current shell PATH. Search known installation directories and record the resolved executable path in the manifest.
-
-For downloaded archives, extraction/resolution must run even when the archive is already present, so reports use executable paths rather than archive paths.
+Do not restate the entire audit prompt as a checklist. Summarize the evidence actually obtained.

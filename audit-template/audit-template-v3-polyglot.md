@@ -100,23 +100,26 @@ Classify each release-relevant artifact before inspecting it:
 For Windows/service/privileged projects, check process mitigations where applicable, strict handles, service/helper/IPC identity, DLL/native/interop boundaries, reparse/junction/symlink TOCTOU defenses, safe create/open flags, parent checks, post-write canonical-path verification, lifecycle, crash breadcrumbs/dumps before exception suppression, rollback/restart/recovery, persistent external/hardware/driver state, tool interference, and cross-API validation.
 
 ## Method and priorities
-Derive expected application behavior from user docs, README/help/UI text, examples, tests, changelogs/migration notes, CLI help, public API docs, configuration schema, package metadata, and code. Record contradictions or undocumented behavior instead of inventing requirements.
 
-Perform an outside-in application-behavior pass before primarily structural review. Exercise representative central workflows/API contracts end to end: install/setup/restore/first run, normal use, empty/invalid/large/unusual input, save/reload/restart, import/export, upgrade/migration, partial failure, cancellation, retry, repeated actions, permission/unavailable states, integration interruption, and relevant feature/configuration combinations. For libraries, substitute representative consumer/API journeys. Compare expected with observed behavior and trace code as needed to establish root cause.
+Derive expected behavior from repository evidence: user/source docs, help/UI text, examples, tests, schemas, package metadata, and code. Record contradictions or undocumented behavior instead of inventing requirements.
 
-Use inspection, builds, tests, analyzers, linters, type/nullability checks, sanitizer/race/fuzzer output, runtime behavior, dependency/advisory data, profiling where justified, and artifact inspection. Prefer project-declared tools and repository-pinned versions. Do not install missing tools globally without authorization; record unavailable high-value checks as coverage gaps.
+Start outside-in. Exercise representative central workflows or consumer/API journeys, including setup/first run, normal use, invalid or unusual input, persistence/restart, migration/import/export, partial failure, cancellation/retry, permissions, integrations, and material feature/configuration variants. Trace code as needed to establish root cause.
 
-For change-focused audits, inspect changed lines plus callers, callees, contracts, tests, migrations, generated interfaces, feature/configuration variants, FFI/ABI boundaries, and compatibility; distinguish introduced from pre-existing defects.
+Use repository-declared inspection, build, test, analyzer, type/lint, sanitizer/race/fuzzer, runtime, dependency, profiling, and artifact tools as applicable. Do not install missing global tooling without authorization. Record material unavailable checks as coverage gaps.
 
-Separate discovery from validation. Before reporting a finding, trace relevant control/data flow, establish reachability and preconditions, check for mitigation elsewhere, attempt to falsify it, reproduce where safe, compare relevant build/runtime variants, and check duplicates/shared root causes. Put unverified concerns under coverage gaps, not as confirmed Critical/High/Medium findings.
+For change-focused audits, inspect changed code plus affected callers/callees, contracts, tests, migrations, generated interfaces, configuration variants, and FFI/ABI boundaries. Distinguish introduced defects from pre-existing ones.
 
-Prioritize: 1 broken central user journeys/API contracts/features, required builds/publishes/artifacts/workflows, data loss, and confirmed crashes; 2 reproducible user-visible correctness/error/state/persistence/integration bugs; 3 security/privacy/secrets/auth/access/injection/parsing/deserialization/traversal/temp/dynamic-loading/update risks; 4 language/runtime-specific memory/resource/lifetime/unsafe/interop/concurrency defects; 5 unsafe rollback/recovery/destructive high-blast-radius actions, malformed-input/DoS/unbounded growth/retry storms/deadlocks/races/shutdown/cancellation/lifecycle; 6 gaps in tests/static analysis/race/sanitizer/fuzzer/artifact/local validation; 7 maintainability only where it materially increases risk, fragility, duplication, cost, or implementation difficulty. Prefer noticeable application defects over theoretical/cosmetic issues unless the latter create material security, privacy, safety, loss, or reliability risk; group only shared-root-cause minors; refactor only to reduce risk.
+Validate before reporting: establish reachability and preconditions, check for existing mitigation, attempt to falsify the concern, reproduce where safe, compare relevant variants, and merge shared-root-cause duplicates. Unverified concerns belong under coverage gaps, not confirmed findings.
+
+Prioritize broken central behavior, data loss/crashes, security/privacy, runtime or memory/resource safety, unsafe recovery/high-blast-radius behavior, then material validation gaps. Treat regression-test gaps and insufficient recurrence diagnostics as material when they make a non-trivial defect likely to recur or materially harder to diagnose. Report maintainability only when it materially increases risk, fragility, or implementation cost.
 
 ## Recommendation limit
-Provide detailed entries for all Critical and High findings, then the highest-risk remaining findings up to approximately **15 detailed findings**. Do not omit release blockers. Group only findings sharing root cause, impact, and remediation. Put additional validated issues in a concise deferred table with ID, severity, location, and description.
+
+Provide detailed entries for every Critical and High finding plus the highest-risk remaining findings, up to approximately **15 detailed findings**. Do not omit release blockers. Group findings only when root cause, impact, and remediation are shared; put additional validated issues in a concise deferred table.
 
 ## Required report sections
-Use exactly these sections:
+
+Use exactly:
 1. Executive Summary, Audit Basis, and Overall Rating
 2. Scorecard
 3. Findings and Recommendations
@@ -126,14 +129,20 @@ Use exactly these sections:
 7. Final Verification Results
 
 ### 1. Executive Summary, Audit Basis, and Overall Rating
-Include: target/version/ref/VCS state when applicable; mode/coverage; purpose/users; languages/runtime profiles; features identified; central workflows/API contracts exercised/passed/failed/partial/not run; platforms/architectures/configurations/feature sets/publish modes; tools/versions/commands; reviewed files/modules/packages/crates/projects/artifacts; exclusions/limitations; verdict; score or reason withheld; confidence; top 5 risks/release blockers; main application-feature/code/runtime/artifact/crash/memory-resource/unsafe-interop/concurrency/security-privacy/UI/domain and highest-blast-radius risks; debt/regression assessment; refactor justification; next phase; important acceptable areas; and notice that out-of-scope operational areas were not scored. Redact secrets to location, type, and short fingerprint.
 
-Verdicts: **Ready** = no Critical/High findings and release-critical paths sufficiently verified. **Ready with minor fixes** = only bounded, non-blocking Medium/Low findings. **Not ready** = unresolved Critical/High findings, broken release-critical paths, or insufficient release-critical confidence. **Assessment blocked** = essential evidence, artifacts, access, or prerequisites are unavailable.
+State the audited target/ref and VCS state, audit mode and coverage, purpose/users, applicable language/runtime profiles, central workflows/API contracts exercised, platforms/configurations/publish modes, relevant tools and commands, reviewed areas/artifacts, exclusions and limitations, verdict, score or reason withheld, confidence, top risks/blockers, and important areas that appear acceptable. Redact secrets to location, type, and a short fingerprint.
+
+Verdicts:
+- **Ready**: no Critical/High findings and release-critical paths are sufficiently verified.
+- **Ready with minor fixes**: only bounded non-blocking Medium/Low findings remain.
+- **Not ready**: unresolved Critical/High findings, broken release-critical behavior, or insufficient release-critical confidence.
+- **Assessment blocked**: essential evidence, artifacts, access, or prerequisites are unavailable.
 
 ### 2. Scorecard
-Score applicable categories 0–10; use `N/A` when inapplicable and `Not assessed` when evidence is insufficient. Use the profile column matching the primary ecosystem; for mixed systems use the Baseline/Mixed column, or create a documented blend when one ecosystem dominates risk. Renormalize positive weights across applicable categories. Report coverage/confidence separately. Do not award high scores without evidence.
 
-Withhold the overall score if any applicable release-critical category is unassessed, central workflows/API contracts were not exercised, required release artifacts were unavailable, coverage is mainly sampled for a release-readiness claim, or release-critical confidence is Low. Do not withhold merely because an inapplicable native/managed check is N/A.
+Score applicable categories 0–10; use `N/A` when inapplicable and `Not assessed` when evidence is insufficient. Use the profile matching the primary ecosystem; use Baseline/Mixed for mixed systems unless a documented risk-weighted blend is more accurate. Renormalize positive weights across applicable categories. Report coverage and confidence separately and do not award high scores without evidence.
+
+Withhold the overall score when a release-critical category is unassessed, central workflows were not exercised, required release artifacts are unavailable, coverage is mainly sampled for a release-readiness claim, or release-critical confidence is Low.
 
 Scale: 10 excellent, 8 good, 7 acceptable, 6 marginal, 5 risky, 4 poor, 2 critical weakness, 0 demonstrated broken/unsafe.
 
@@ -151,12 +160,11 @@ Scale: 10 excellent, 8 good, 7 acceptable, 6 marginal, 5 risky, 4 poor, 2 critic
 | Source build, tooling, static/dynamic analysis, publish, and artifact inspection | 6% | 7% | 7% | 6% | 5% | 6% | 4% | | | | |
 | Dependencies, supply chain, licensing, API/config/package/docs compatibility | 3% | 2% | 2% | 3% | 3% | 3% | 3% | | | | |
 
-Each profile totals 100%. If accessibility/i18n or domain-specific safety/failsafes is central, give it an explicit positive weight and reduce less relevant categories so the total remains 100%; document the adjustment. For unusual targets (embedded, kernel/driver, safety-critical, heavy FFI, parser service, plugin host, etc.), adjust weights to the actual risk model and show the before/after rationale.
-
-Weighted total = sum(score × assessed weight) / sum(assessed positive weights). Show brief arithmetic and assessed-weight coverage.
+Each profile totals 100%. Adjust weights for central accessibility/i18n, domain safety, or unusual target risk models and document the change. Weighted total = sum(score × assessed weight) / sum(assessed positive weights). Show brief arithmetic and assessed-weight coverage.
 
 ### 3. Findings and Recommendations
-Use IDs `F-[CATEGORY_NUMBER]-[SEQUENTIAL_NUMBER]`, e.g. `F-04-001`. Each finding must use exactly:
+
+Use IDs `F-[CATEGORY_NUMBER]-[SEQUENTIAL_NUMBER]`. Each finding must contain:
 
 ```text
 ID:
@@ -190,56 +198,48 @@ Counterevidence checked:
 Notes:
 ```
 
-Use `N/A` only where genuinely inapplicable; never to conceal missing investigation or evidence. Evidence must be concrete: paths, symbols/functions/types, commands, configuration/feature matrix, reproduction output, screenshots/state transitions where available, build/publish/artifact-inspection output, tests, runtime/analyzer/race/sanitizer/Miri/fuzzer output, dependency advisory, or verified absence of required coverage. Do not use `Evidence unavailable` for Critical/High/Medium findings.
-
-Determine severity from supported impact and likelihood, including user reachability, privilege, population, recoverability, sensitivity, and blast radius. Critical = catastrophic impact with credible reachability, such as widespread irreversible loss, remote/cross-tenant compromise, exploitable privileged memory corruption, unsafe physical behavior, or failed mandatory safety boundary. High = serious impact in a reachable central path. Medium = material fix with constrained impact/reachability/preconditions or practical recovery. Low = localized limited-impact defect/debt. Informational = no required fix. Release-blocker status is independent.
-
-Do not inflate severity solely because code contains `unsafe`, native code, reflection, CGO, PInvoke, a panic/exception path, or a missing optional mitigation. Establish an actual violated contract, reachable hazard, or materially missing release evidence.
+Use `N/A` only for genuine inapplicability, never missing investigation. Critical/High/Medium findings require concrete evidence. Determine severity from supported impact and likelihood, including reachability, privilege, affected population, recoverability, sensitivity, and blast radius. Do not inflate severity merely because a mechanism such as native code, `unsafe`, reflection, CGO, PInvoke, panic/exception paths, or optional hardening is present.
 
 ### 4. Application, Code, Runtime, and Artifact Production-Readiness Assessment
-Answer directly: whether intended users/consumers can complete central journeys/API contracts and features behave as documented across relevant setup/default/configuration/persistence/restart/failure/integration/feature/target/publish scenarios; whether the application/code/runtime/artifacts are production-ready; whether it is ready to ship; what must fix, fix soon, or defer; residual feature/artifact/crash/memory-resource/unsafe-interop/concurrency/security-privacy/error/UI-synchronization/domain risks; central, fragile, high-risk, under-tested, performance/parser/native-FFI/interop/security/artifact/GUI/platform/domain-sensitive components; and acceptable areas not to change unnecessarily.
 
-State explicitly which ecosystem-specific checks materially affected the verdict and which were N/A. Do not assess out-of-scope operational readiness unless asked.
+Answer whether central workflows/contracts work as documented across relevant setup, configuration, persistence/restart, failure, integration, feature, target, and publish scenarios; whether the application/code/runtime/artifacts are production-ready and ready to ship; what must be fixed, fixed soon, or deferred; residual risks; which components are central or high-risk; and which areas should not be changed unnecessarily.
+
+State which ecosystem-specific checks materially affected the assessment and which were N/A. Do not assess out-of-scope operational readiness unless requested.
 
 ### 5. Implementation Plan
-Provide a practical phased plan for a later coding agent tied only to selected findings. For each applicable phase include finding IDs, tasks, user/consumer benefit, risk, affected files/modules/packages/crates/projects/artifacts, dependencies, validation, release requirement, and order.
 
-Phases:
-0. **Safety/Baseline** — capture feature/workflow/API/build/test/analyzer/runtime/publish/artifact baselines, language profiles, configuration matrix, and high-risk boundaries; avoid behavior changes before validation.
-1. **Release Blockers** — fix Critical/blocking High findings and broken central journeys/contracts.
-2. **Application Correctness/Reliability/Compatibility** — fix user-visible/consumer-visible behavior, logic, errors, state/persistence, lifecycle, recovery, malformed input, cancellation, concurrency, UI/synchronization, integration, platform, migration, feature/configuration, runtime, and compatibility issues.
-3. **Regression Hardening** — targeted workflow/unit/integration/consumer tests plus applicable analyzer/nullability/type/lint/race/sanitizer/Miri/fuzzer/malformed-input/security/privacy/artifact checks.
-4. **Performance/Resource/Storage/Artifact Size** — fix unbounded growth, leaks, excessive allocation/concurrency, overhead, cost/energy, bloat, startup, throughput/latency, and DoS paths.
-5. **Architecture/Maintainability** — reduce justified duplication, fragile boundaries, unsafe abstractions, dead code, and complexity only where it lowers material risk or implementation cost.
-6. **Build/Runtime/Artifacts/Dependencies/Docs** — fix local tooling/analyzer/publish/hardening/dependency/license/API/config/package/source/user-doc gaps; exclude deployment/signing/packaging/infrastructure unless asked.
-7. **Final Validation** — rerun applicable workflows, ecosystem-specific checks, publish modes, target variants, and artifact inspection.
+Group selected findings into the fewest applicable phases, ordered by severity and dependency. Preserve this phase taxonomy when relevant: **0 Safety/Baseline; 1 Release Blockers; 2 Application Correctness/Reliability/Compatibility; 3 Regression Hardening; 4 Performance/Resource/Storage/Artifact Size; 5 Architecture/Maintainability; 6 Build/Runtime/Artifacts/Dependencies/Docs; 7 Final Validation**. Omit empty phases. For each included phase state finding IDs, tasks, affected areas/artifacts, dependencies, validation, compatibility/performance considerations, release requirement, and implementation order.
 
 ### 6. Implementation Rules
-For later fixes: make the smallest safe root-cause change; preserve intended behavior/APIs/config/persisted formats/ABI/package contracts/UI/integration contracts unless wrong or unsafe; refactor only to reduce risk/duplication/fragility/cost; add features only for correctness, errors, safety, reliability, security/privacy, readiness, maintainability, accessibility/i18n, cost, domain safety, artifact quality, or regression prevention.
 
-Preserve useful optional debug logs and remove/isolate harmful/stale/noisy production diagnostics. Fix warning/analyzer/linter/nullability/type/race/sanitizer/compiler/linker/publish root causes, suppressing narrowly with justification. Prefer safe APIs, checked/bounded arithmetic, bounded queues/concurrency, backpressure, structured cancellation, rollback, explicit resource ownership/lifetime, and clear interop contracts.
+For later fixes:
+- Make the smallest safe root-cause change and preserve intended public/API/config/persisted/ABI/package/UI/integration contracts unless the contract itself is wrong or unsafe.
+- Keep refactors tied to a selected finding or material risk reduction; do not add unrelated features or cleanup.
+- Treat focused regression coverage and recurrence diagnosability as first-class implementation requirements. Add a focused automated regression test for non-trivial behavioral fixes when practical; if omitted, state why. Add enough high-signal diagnostics to make credible recurrences diagnosable without relying on luck or an attached debugger.
+- Preserve useful diagnostics and hardening. Fix warning/analyzer/sanitizer/compiler/linker causes rather than broadly suppressing them.
+- Treat parser/native/FFI/unsafe/interop/concurrency/dynamic-loading/privileged and other high-blast-radius boundaries as high-risk until validated, without treating the mechanism itself as a defect.
+- Validate fixes with the original reproduction and focused automated regression tests when practical, across affected profiles/configurations/artifact modes.
 
-Treat parser/native/FFI/unsafe/interop/concurrency/service/dynamic-loading/privileged/GUI/integration/domain code as high-risk until validated, but do not equate language mechanism with defect. Do not hide crashes, panics, exceptions, task failures, or user-visible failures without fixing root cause or unsafe state. Preserve hardening and diagnosability appropriate to the ecosystem. Validate every fix with the original reproduction and preferably automated regression tests across the affected profile/configuration/artifact mode.
-
-Language-specific implementation rules:
+Language-specific implementation constraints where applicable:
 - **C**: preserve ABI/layout and ownership contracts; pair allocation/deallocation; avoid introducing UB through aliasing, alignment, arithmetic, lifetime, or cleanup changes.
 - **C++**: preserve exception/noexcept, move/copy, RAII, ABI, and object-lifetime contracts; avoid replacing clear ownership with raw/manual lifetime without need.
 - **Rust**: minimize and document unsafe surface; preserve safety invariants, feature behavior, MSRV/edition/public API/semver expectations, and FFI layout/unwind contracts.
 - **C#/.NET**: preserve TFM/public API/nullability/serialization/config contracts; dispose owned resources; preserve async/cancellation semantics; validate supported publish modes after reflection/dynamic-code changes.
-- **Go**: preserve exported API/module compatibility and context/error contracts; prevent goroutine/resource leaks; make channel ownership and shutdown explicit; validate with the race detector where the changed path is concurrent and supported.
-- **Python**: preserve supported interpreter versions, public/import/package/entry-point behavior, serialization/config contracts, typing promises, async/cancellation semantics, and wheel/sdist compatibility; avoid hidden global state and environment-dependent imports; close owned resources/processes/tasks; validate both source-tree and installed-package behavior where packaging is affected.
+- **Go**: preserve exported API/module compatibility and context/error contracts; prevent goroutine/resource leaks; make channel ownership and shutdown explicit; validate concurrent changed paths with the race detector where supported.
+- **Python**: preserve supported interpreter versions, public/import/package/entry-point behavior, serialization/config contracts, typing promises, async/cancellation semantics, and wheel/sdist compatibility; close owned resources/processes/tasks and validate installed-package behavior when packaging is affected.
 
 ### 7. Final Verification Results
-For each applicable check report `Passed / Failed / Partial / Not run / N/A`, evidence, and limitations. Organize results by **Common**, **Ecosystem-specific**, and **Artifact/runtime** checks so irrelevant native/managed checks do not obscure coverage.
 
-Verify common checks as applicable: identified features and central journeys/API contracts; first run/setup/restore/defaults/normal use/invalid input/save-reload/restart/import-export/migration/cancellation/retry/repeated actions/permissions/integration interruption/feature combinations; expected versus observed behavior and user-visible/consumer-visible errors; clean supported builds; tests/workflows; crash/failure reproducers; malformed/oversized/truncated/corrupt/deep/missing/invalid/permission/disk/network/dependency/subprocess/shutdown/restart/exhaustion paths; sensitive diagnostics/URLs/args/env/artifacts; filesystem/persistence traversal/link races/temp/archive/overwrite/delete/permissions/partial writes/corrupt state/disk exhaustion; concurrency races/deadlocks/livelocks/reentrancy/async or goroutine/task lifetime/retry/shutdown; malicious parser/decoder/deserializer/importer/archive/protocol/plugin inputs; auth/access/redaction/secrets/injection/traversal/dynamic loading/updates; GUI synchronization/validation/states/navigation/partial save/rollback; domain defaults/rollback/recovery/persistence/rate limits/idempotency/external reset/cross-API validation; dependencies/licensing; API/config/persisted-format/package/flag/encoding/Unicode/locale/platform/docs compatibility; and that out-of-scope operations were not scored.
+For each applicable check report `Passed / Failed / Partial / Not run / N/A`, evidence, and limitations.
 
-Verify ecosystem-specific checks where applicable:
-- **C**: supported compiler/dialect matrix, strict warnings, static analysis, sanitizer/instrumented paths, pointer/lifetime/bounds/uninitialized/integer/aliasing/alignment/varargs/format/atomic/signal/resource/ABI risks.
-- **C++**: C/native checks plus RAII/object lifetime, exception safety, move/copy/invalidation, smart pointers, templates/ODR, coroutines, atomics, ABI/runtime/library assumptions, and linker/LTO behavior.
-- **Rust**: toolchain/MSRV/edition, workspace/targets, meaningful feature matrix, `cargo check/test`, Clippy/format checks when available, unsafe/FFI contracts, panic/unwind, Send/Sync/concurrency, async cancellation, build.rs/proc-macro/native dependencies, and Miri/sanitizer/fuzzer checks when applicable and available.
-- **C#/.NET**: TFMs/RIDs, Release build/tests, compiler/Roslyn analyzers, nullable/resource/async/cancellation/concurrency/interop checks, representative publish modes, trimming/single-file/ReadyToRun/AOT warnings and runtime equivalence when supported, and published-artifact smoke tests.
-- **Go**: module/build-tag/GOOS-GOARCH matrix, `go test`, `go vet`, race-detector coverage for concurrent paths, fuzzing for exposed parsers where feasible, resource/goroutine/context/channel/error/panic behavior, module verification/advisories, and CGO boundaries when present.
-- **Python**: supported Python/interpreter matrix, clean environment/setup, repository-declared tests, lint/type checks when configured, import/package behavior, exception/resource/subprocess handling, async/task/cancellation and thread/process behavior, common semantic hazards, dependency/advisory checks, packaging metadata, clean wheel/sdist build when applicable, installed-artifact smoke tests, and native-extension/FFI boundaries when present.
+Cover only checks relevant to the target:
+- central workflows/API contracts and known reproducers
+- supported builds/tests/configurations/targets/publish modes
+- applicable language-profile checks defined above
+- malformed input, failure/recovery, concurrency/resource, security/privacy, persistence/filesystem, integration, and compatibility paths implicated by the target or findings
+- produced artifacts: target/runtime compatibility, dependencies/loader paths, embedded sensitive data, applicable hardening, ABI/FFI/interop, debug/release or JIT/AOT differences, size/startup/smoke behavior
+- dependencies/licensing and API/config/package/docs compatibility
+- unavailable evidence or tools and their coverage/confidence impact
+- confirmation that out-of-scope operational areas were not scored
 
-Verify artifact/runtime checks where applicable: release artifact existence and provenance within the audited build; architecture/target/runtime compatibility; symbols/dependencies/loader paths; embedded paths/secrets; native hardening only where applicable; managed runtime/publish metadata; feature/build-tag/configuration equivalence; ABI/FFI/interop boundaries; debug-release or JIT/AOT differences; artifact size/bloat; startup/smoke behavior; and that flags/settings claimed to provide safety or hardening are effective in the produced artifact/runtime rather than merely configured.
+Do not repeat every audit prompt as a checklist; summarize the evidence actually obtained.
