@@ -20,6 +20,8 @@
 
 .PARAMETER AdditionalToolRoots
   Additional local roots to search recursively, for example a security-audit install root.
+  Existing managed Sysinternals, FFmpeg, and vswhere directories under
+  %LOCALAPPDATA%\SecurityAuditTools\bin are also searched automatically.
 
 .PARAMETER NoWrite
   Perform discovery without writing manifest/report files.
@@ -167,6 +169,32 @@ function Find-ToolInRoots {
   return $null
 }
 
+function Get-EffectiveAdditionalToolRoots {
+  param([string[]]$ConfiguredRoots = @())
+
+  $roots = [System.Collections.Generic.List[string]]::new()
+  foreach ($configuredRoot in @($ConfiguredRoots)) {
+    if (-not $configuredRoot) { continue }
+    $resolved = Resolve-ConfiguredPath -Value $configuredRoot
+    if ($resolved -and (Test-Path -LiteralPath $resolved)) {
+      $roots.Add($resolved) | Out-Null
+    }
+  }
+
+  if ($env:LOCALAPPDATA) {
+    $securityAuditBin = Join-Path $env:LOCALAPPDATA "SecurityAuditTools\bin"
+    foreach ($managedSubdirectory in @("sysinternals", "ffmpeg", "vswhere")) {
+      $managedRoot = Join-Path $securityAuditBin $managedSubdirectory
+      if (Test-Path -LiteralPath $managedRoot) {
+        $roots.Add([IO.Path]::GetFullPath($managedRoot)) | Out-Null
+      }
+    }
+  }
+
+  return @($roots | Select-Object -Unique)
+}
+
+
 function Get-WindowsSdkDebuggerArchitectures {
   $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
   switch ($hostArchitecture.ToUpperInvariant()) {
@@ -176,8 +204,12 @@ function Get-WindowsSdkDebuggerArchitectures {
   }
 }
 
-function Get-WindowsSdkDebuggerCandidatePaths {
-  param([string]$ToolName)
+function Get-WindowsSdkDebuggerCandidatePathsForArchitecture {
+  param(
+    [string]$ToolName,
+    [ValidateSet("x86", "x64", "arm", "arm64")]
+    [string]$Architecture
+  )
 
   $paths = [System.Collections.Generic.List[string]]::new()
   $overrideKeys = @{
@@ -187,22 +219,69 @@ function Get-WindowsSdkDebuggerCandidatePaths {
     arm64 = "WINDOWS_SDK_DEBUGGERS_ARM64"
   }
 
-  foreach ($architecture in @(Get-WindowsSdkDebuggerArchitectures)) {
-    $override = Get-OverrideValue -Name $overrideKeys[$architecture]
-    if ($override) {
-      $root = Resolve-ConfiguredPath -Value $override
-      if ($root) { $paths.Add((Join-Path $root $ToolName)) | Out-Null }
-    }
+  $override = Get-OverrideValue -Name $overrideKeys[$Architecture]
+  if ($override) {
+    $root = Resolve-ConfiguredPath -Value $override
+    if ($root) { $paths.Add((Join-Path $root $ToolName)) | Out-Null }
+  }
 
-    foreach ($baseRoot in @(
-      [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process"),
-      [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
-    ) | Where-Object { $_ } | Select-Object -Unique) {
-      $paths.Add((Join-Path (Join-Path (Join-Path (Join-Path $baseRoot "Windows Kits") "10") "Debuggers\$architecture") $ToolName)) | Out-Null
-    }
+  foreach ($baseRoot in @(
+    [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process"),
+    [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
+  ) | Where-Object { $_ } | Select-Object -Unique) {
+    $paths.Add((Join-Path (Join-Path (Join-Path (Join-Path $baseRoot "Windows Kits") "10") "Debuggers\$Architecture") $ToolName)) | Out-Null
   }
 
   return @($paths | Select-Object -Unique)
+}
+
+function Get-WindowsSdkDebuggerCandidatePaths {
+  param([string]$ToolName)
+
+  $paths = [System.Collections.Generic.List[string]]::new()
+  foreach ($architecture in @(Get-WindowsSdkDebuggerArchitectures)) {
+    foreach ($candidate in @(Get-WindowsSdkDebuggerCandidatePathsForArchitecture -ToolName $ToolName -Architecture $architecture)) {
+      $paths.Add($candidate) | Out-Null
+    }
+  }
+  return @($paths | Select-Object -Unique)
+}
+
+function Get-WindowsSdkDebuggerArchitectureMatrix {
+  param([string[]]$ToolNames)
+
+  $matrix = [System.Collections.Generic.List[object]]::new()
+  foreach ($architecture in @(Get-WindowsSdkDebuggerArchitectures)) {
+    foreach ($toolName in @($ToolNames)) {
+      $resolvedPath = $null
+      foreach ($candidate in @(Get-WindowsSdkDebuggerCandidatePathsForArchitecture -ToolName $toolName -Architecture $architecture)) {
+        if (Test-Path -LiteralPath $candidate) {
+          $resolvedPath = $candidate
+          break
+        }
+      }
+
+      if ($resolvedPath) {
+        $matrix.Add([pscustomobject]@{
+          tool = $toolName
+          architecture = $architecture
+          status = "available"
+          path = $resolvedPath
+          source = "override-or-sdk-layout"
+        }) | Out-Null
+      } else {
+        $matrix.Add([pscustomobject]@{
+          tool = $toolName
+          architecture = $architecture
+          status = "missing"
+          path = ""
+          source = ""
+        }) | Out-Null
+      }
+    }
+  }
+
+  return @($matrix)
 }
 
 function Resolve-WindowsSdkDebuggerTool {
@@ -413,8 +492,9 @@ function Resolve-GenericTool {
 }
 
 $script:Overrides = Read-ToolPathOverrides -Path $ToolPathsEnv
+$AdditionalToolRoots = @(Get-EffectiveAdditionalToolRoots -ConfiguredRoots $AdditionalToolRoots)
 
-foreach ($tool in @(
+$windowsSdkDebuggerTools = @(
   "cdb.exe",
   "windbg.exe",
   "dumpchk.exe",
@@ -424,9 +504,13 @@ foreach ($tool in @(
   "symstore.exe",
   "gflags.exe",
   "umdh.exe"
-)) {
+)
+
+foreach ($tool in $windowsSdkDebuggerTools) {
   Resolve-WindowsSdkDebuggerTool -ToolName $tool
 }
+
+$windowsSdkDebuggerArchitectures = @(Get-WindowsSdkDebuggerArchitectureMatrix -ToolNames $windowsSdkDebuggerTools)
 
 $windowsApps = @()
 if ($env:LOCALAPPDATA) { $windowsApps += (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps") }
@@ -469,6 +553,8 @@ $manifest = [pscustomobject]@{
   project_root = $ProjectRoot
   output_root = $OutputRoot
   tool_paths_env = $resolvedToolPathsEnv
+  additional_tool_roots = @($AdditionalToolRoots)
+  windows_sdk_debugger_architectures = $windowsSdkDebuggerArchitectures
   host = [pscustomobject]@{
     computer_name = $env:COMPUTERNAME
     user = $env:USERNAME
@@ -493,6 +579,17 @@ if (-not $NoWrite) {
   $md.Add("- Generated: $($manifest.generated_at)")
   $md.Add('- Project root: `' + $ProjectRoot + '`')
   $md.Add('- Tool-path overrides: `' + $manifest.tool_paths_env + '`')
+  $md.Add('- Additional tool roots: `' + (@($manifest.additional_tool_roots) -join '; ') + '`')
+  $md.Add("")
+  $md.Add("## Windows SDK debugger architecture matrix")
+  $md.Add("")
+  $md.Add("| Architecture | Tool | Status | Path | Source |")
+  $md.Add("|---|---|---|---|---|")
+  foreach ($variant in $windowsSdkDebuggerArchitectures) {
+    $md.Add(('| {0} | {1} | {2} | `{3}` | {4} |' -f $variant.architecture, $variant.tool, $variant.status, $variant.path, $variant.source))
+  }
+  $md.Add("")
+  $md.Add("## Preferred/general tool resolution")
   $md.Add("")
   $md.Add("| Tool | Category | Status | Path | Source | Notes |")
   $md.Add("|---|---|---|---|---|---|")

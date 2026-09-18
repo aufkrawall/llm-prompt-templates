@@ -32,8 +32,12 @@ foreach ($functionName in @(
   "Resolve-ConfiguredPath",
   "Read-ToolPathOverrides",
   "Get-OverrideValue",
+  "Find-ToolInRoots",
+  "Get-EffectiveAdditionalToolRoots",
   "Get-WindowsSdkDebuggerArchitectures",
+  "Get-WindowsSdkDebuggerCandidatePathsForArchitecture",
   "Get-WindowsSdkDebuggerCandidatePaths",
+  "Get-WindowsSdkDebuggerArchitectureMatrix",
   "Get-MsvcBinaryToolArchitecturePreferences",
   "Get-MsvcOverrideKeys",
   "Select-PreferredMsvcToolMatch",
@@ -54,8 +58,12 @@ foreach ($functionName in @(
 $originalProgramFiles = [Environment]::GetEnvironmentVariable("ProgramFiles", "Process")
 $originalProgramFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)", "Process")
 $originalProcessorArchitecture = [Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE", "Process")
+$originalLocalAppData = [Environment]::GetEnvironmentVariable("LOCALAPPDATA", "Process")
 $overrideFile = $null
 $vsRoot = $null
+$rootA = $null
+$rootB = $null
+$testLocalAppData = $null
 
 try {
   $script:Warnings = [System.Collections.Generic.List[string]]::new()
@@ -67,6 +75,24 @@ try {
   [Environment]::SetEnvironmentVariable("ProgramFiles", $rootA, "Process")
   [Environment]::SetEnvironmentVariable("ProgramFiles(x86)", $rootB, "Process")
   $env:PROCESSOR_ARCHITECTURE = "AMD64"
+
+  $testLocalAppData = Join-Path $ProjectRoot "llm-template-test-localappdata"
+  [Environment]::SetEnvironmentVariable("LOCALAPPDATA", $testLocalAppData, "Process")
+  $managedBin = Join-Path $testLocalAppData "SecurityAuditTools\bin"
+  $managedFfmpegDir = Join-Path $managedBin "ffmpeg\extract\test\bin"
+  New-Item -ItemType Directory -Path $managedFfmpegDir -Force | Out-Null
+  $managedFfmpeg = Join-Path $managedFfmpegDir "ffmpeg.exe"
+  Set-Content -LiteralPath $managedFfmpeg -Value "" -Encoding ASCII
+
+  $effectiveRoots = @(Get-EffectiveAdditionalToolRoots -ConfiguredRoots @())
+  $managedFfmpegRoot = Join-Path $managedBin "ffmpeg"
+  if ($effectiveRoots -notcontains ([IO.Path]::GetFullPath($managedFfmpegRoot))) {
+    throw "SecurityAuditTools managed FFmpeg root was not auto-discovered."
+  }
+  $resolvedManagedFfmpeg = Find-ToolInRoots -ToolName "ffmpeg.exe" -Roots $effectiveRoots -Recurse
+  if ($resolvedManagedFfmpeg -ne $managedFfmpeg) {
+    throw "Managed FFmpeg was not discoverable through automatic additional roots."
+  }
 
   $overrideRoot = Join-Path $ProjectRoot "sdk-x86-override"
   $overrideFile = Join-Path $ProjectRoot "llm-debug-tool-paths-test.env"
@@ -100,6 +126,25 @@ try {
   Assert-SequenceEqual -Label "AMD64 standard debugger path preference" -Actual $architectures -Expected @(
     "x64", "x64", "x86", "x86", "arm64", "arm64", "arm", "arm"
   )
+
+  $sdkX64Dir = Join-Path $rootB "Windows Kits\10\Debuggers\x64"
+  $sdkX86Dir = Join-Path $rootB "Windows Kits\10\Debuggers\x86"
+  New-Item -ItemType Directory -Path $sdkX64Dir -Force | Out-Null
+  New-Item -ItemType Directory -Path $sdkX86Dir -Force | Out-Null
+  $sdkX64Cdb = Join-Path $sdkX64Dir "cdb.exe"
+  $sdkX86Cdb = Join-Path $sdkX86Dir "cdb.exe"
+  Set-Content -LiteralPath $sdkX64Cdb -Value "" -Encoding ASCII
+  Set-Content -LiteralPath $sdkX86Cdb -Value "" -Encoding ASCII
+
+  $sdkMatrix = @(Get-WindowsSdkDebuggerArchitectureMatrix -ToolNames @("cdb.exe"))
+  $x64Cdb = $sdkMatrix | Where-Object { $_.architecture -eq "x64" -and $_.tool -eq "cdb.exe" } | Select-Object -First 1
+  $x86Cdb = $sdkMatrix | Where-Object { $_.architecture -eq "x86" -and $_.tool -eq "cdb.exe" } | Select-Object -First 1
+  if (-not $x64Cdb -or $x64Cdb.status -ne "available" -or $x64Cdb.path -ne $sdkX64Cdb) {
+    throw "Architecture matrix did not report x64 cdb.exe."
+  }
+  if (-not $x86Cdb -or $x86Cdb.status -ne "available" -or $x86Cdb.path -ne $sdkX86Cdb) {
+    throw "Architecture matrix did not report x86 cdb.exe."
+  }
 
   Assert-SequenceEqual -Label "AMD64 MSVC override preference" -Actual @(Get-MsvcOverrideKeys) -Expected @(
     "MSVC_TOOLS_X64", "MSVC_TOOLS_X86", "MSVC_TOOLS_ARM64"
@@ -157,11 +202,17 @@ try {
   [Environment]::SetEnvironmentVariable("ProgramFiles", $originalProgramFiles, "Process")
   [Environment]::SetEnvironmentVariable("ProgramFiles(x86)", $originalProgramFilesX86, "Process")
   [Environment]::SetEnvironmentVariable("PROCESSOR_ARCHITECTURE", $originalProcessorArchitecture, "Process")
+  [Environment]::SetEnvironmentVariable("LOCALAPPDATA", $originalLocalAppData, "Process")
   if ($overrideFile -and (Test-Path -LiteralPath $overrideFile)) {
     Remove-Item -LiteralPath $overrideFile -Force -ErrorAction SilentlyContinue
   }
   if ($vsRoot -and (Test-Path -LiteralPath $vsRoot)) {
     Remove-Item -LiteralPath $vsRoot -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  foreach ($testRoot in @($rootA, $rootB, $testLocalAppData)) {
+    if ($testRoot -and (Test-Path -LiteralPath $testRoot)) {
+      Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
   }
 }
 
