@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Generic project tooling helper used by llm-wiki/debug-tools.md and by security-audit tooling.
-  Resolution order is explicit tool-path overrides, project/local managed roots, standard Windows locations, then PATH.
+  Resolution uses explicit tool-path overrides, project/local managed roots, standard Windows locations, and PATH with tool-specific precedence.
   The script writes a machine-local debug-tool manifest and Markdown availability report unless -NoWrite is used.
   It never installs packages, downloads tools, edits PATH, or changes debugger/system state.
 
@@ -257,6 +257,15 @@ function Get-MsvcBinaryToolArchitecturePreferences {
   }
 }
 
+function Get-MsvcOverrideKeys {
+  $hostArchitecture = [string]$env:PROCESSOR_ARCHITECTURE
+  switch ($hostArchitecture.ToUpperInvariant()) {
+    "ARM64" { return @("MSVC_TOOLS_ARM64", "MSVC_TOOLS_X64", "MSVC_TOOLS_X86") }
+    "AMD64" { return @("MSVC_TOOLS_X64", "MSVC_TOOLS_X86", "MSVC_TOOLS_ARM64") }
+    default { return @("MSVC_TOOLS_X86", "MSVC_TOOLS_X64", "MSVC_TOOLS_ARM64") }
+  }
+}
+
 function Select-PreferredMsvcToolMatch {
   param([object[]]$Candidates)
 
@@ -320,11 +329,11 @@ function Get-VisualStudioRoots {
 function Resolve-MsvcTool {
   param([string]$ToolName)
 
-  $overrideRoots = @(
-    Get-OverrideValue -Name "MSVC_TOOLS_X64"
-    Get-OverrideValue -Name "MSVC_TOOLS_X86"
-    Get-OverrideValue -Name "MSVC_TOOLS_ARM64"
-  ) | Where-Object { $_ } | Select-Object -Unique
+  $overrideRoots = foreach ($key in @(Get-MsvcOverrideKeys)) {
+    $value = Get-OverrideValue -Name $key
+    if ($value) { $value }
+  }
+  $overrideRoots = @($overrideRoots | Select-Object -Unique)
 
   $path = Find-ToolInRoots -ToolName $ToolName -Roots $overrideRoots -Recurse
   if ($path) {
