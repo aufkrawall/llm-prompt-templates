@@ -18,15 +18,17 @@ In short:
 
 1. Inspect the target repository before copying anything.
 2. Integrate `llm-wiki-agents.md-template/AGENTS.md` as the project's root `AGENTS.md` baseline.
-3. Integrate `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` as `llm-wiki/debug-tools.md`.
-4. Integrate `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as `llm-wiki/changelog-guidelines.md`, adapting it to the target project's existing changelog/release process when one exists.
-5. Integrate `common-tools/discover-debug-tools.ps1` as `tools/discover-debug-tools.ps1` and merge `common-tools/tool-paths.example.env` into the project's generic path-override example.
-6. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
-7. Adapt the files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
-8. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, `tools/`, path-override examples, or equivalent project knowledge.
-9. Preserve useful existing project-specific rules and diagnostics.
-10. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
-11. Do not run mutating tool installers merely as part of the default integration. The generic discovery helper itself is non-mutating.
+3. Integrate `llm-wiki-agents.md-template/CHANGELOG.md` as the root `CHANGELOG.md` when the target has no changelog/equivalent, unless explicitly opted out.
+4. Integrate `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` as `llm-wiki/debug-tools.md`.
+5. Integrate `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as `llm-wiki/changelog-guidelines.md`, adapting it to the target project's changelog/release process.
+6. Integrate `llm-wiki-agents.md-template/llm-wiki/secret-leak-prevention.md` as `llm-wiki/secret-leak-prevention.md`; its pre-commit and post-commit checks are mandatory for agent-created commits.
+7. Integrate `common-tools/discover-debug-tools.ps1` as `tools/discover-debug-tools.ps1` and merge `common-tools/tool-paths.example.env` into the project's generic path-override example.
+8. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
+9. Adapt the files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
+10. **Merge; do not blindly overwrite** existing `AGENTS.md`, `CHANGELOG.md`, `llm-wiki/`, `tools/`, path-override examples, or equivalent project knowledge.
+11. Preserve useful existing project-specific rules and diagnostics.
+12. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
+13. Do not run mutating tool installers merely as part of the default integration. The generic discovery helper itself is non-mutating.
 
 `INSTALL.md` is authoritative if there is any ambiguity.
 
@@ -45,8 +47,10 @@ In short:
 | `security-audit-template/install-security-audit-tools.ps1` | Windows security-audit tool installer that reuses generic debug-tool discovery. |
 | `security-audit-template/install-security-audit-tools.sh` | Linux/macOS audit-tool detection/optional installation helper. |
 | `llm-wiki-agents.md-template/AGENTS.md` | Generic project-level coding-agent instruction baseline. |
+| `llm-wiki-agents.md-template/CHANGELOG.md` | Minimal root changelog baseline created by default when the target has no changelog/equivalent. |
 | `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` | Generic project-local debugger/binary-tool inventory. |
-| `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` | Reusable changelog/release-note policy adapted from production handling: continuous unreleased updates, user-facing bold anchors, standard categories, and release-note parity. |
+| `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` | Reusable changelog/release-note policy: default changelog creation, continuous unreleased updates, user-facing bold anchors, standard categories, and release-note parity. |
+| `llm-wiki-agents.md-template/llm-wiki/secret-leak-prevention.md` | Mandatory pre-commit and post-commit secret-leak prevention procedure with scanner and manual fallback paths. |
 
 ## Usage
 
@@ -58,7 +62,7 @@ For a new or existing project, the shortest intended request is simply:
 Add this to our project: https://github.com/aufkrawall/llm-prompt-templates
 ```
 
-An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, changelog guidance, both `llm-wiki` tool inventories, and the non-mutating generic debug-tool discovery helper, while avoiding unrelated audit prompt/tool installation.
+An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, create/preserve the root changelog, install the changelog and secret-leak procedures plus both tool inventories, and integrate the non-mutating generic debug-tool discovery helper while avoiding unrelated audit prompt/tool installation.
 
 ### General quality audit
 
@@ -92,10 +96,12 @@ The security installer/detector scripts are optional. Generic debugger/developer
 
 ### Agent instructions / llm-wiki
 
-The default integration installs/adapts the generic changelog guidance and both tool inventories under `llm-wiki/`:
+The default integration creates/preserves the root changelog and installs/adapts changelog, secret-safety, and tool guidance under `llm-wiki/`:
 
 ```text
+CHANGELOG.md
 llm-wiki/changelog-guidelines.md
+llm-wiki/secret-leak-prevention.md
 llm-wiki/debug-tools.md
 llm-wiki/debug-tools-security-audit.md
 ```
@@ -104,6 +110,7 @@ Customize them with:
 
 - project build/test commands and platform priorities
 - existing changelog structure, release-note workflow, and any verified validation/extraction commands
+- repository-specific secret scanners, sensitive-file rules, credential handling, and commit/push safety gates
 - non-negotiable technical constraints
 - local debugger, symbol, artifact, log, and capture paths
 - security-relevant binary/runtime inspection tools
