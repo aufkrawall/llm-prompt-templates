@@ -5,7 +5,7 @@ Copyright (c) 2026 aufkrawall
 
 # Changelog and Release Notes Guidelines
 
-Use this page as a reusable baseline for repositories that maintain a changelog or publish human-authored release notes. Adapt project-specific commands, categories, versioning, and release automation to the target repository instead of copying assumptions from another project.
+Use this page as a reusable baseline for project changelog and release-note maintenance. The default integration owns creation of a root `CHANGELOG.md` when the target has no changelog or equivalent release log, unless explicit repository policy or the user opts out. Adapt project-specific commands, categories, versioning, and release automation instead of copying assumptions from another project.
 
 ## Purpose
 
@@ -52,8 +52,9 @@ When the project uses Keep a Changelog-style categories, prefer the standard hea
 
 Use the target repository's established categories when they differ.
 
-### 3. Update incrementally during development
+### 3. Create and update the changelog by default
 
+- If the repository has no changelog or equivalent release log, initialize a root `CHANGELOG.md` from the reusable baseline with `# Changelog` and `## Unreleased`, unless explicit repository policy or the user opts out.
 - When the repository maintains `CHANGELOG.md`, update the current unreleased section as part of completing changelog-worthy work.
 - Do not defer all changelog writing to release preparation; that loses problem context and makes omissions more likely.
 - Keep the unreleased section aligned with completed changes since the last published release.
@@ -95,16 +96,15 @@ If the target repository already has a different changelog schema, preserve it u
 
 ## Agent workflow
 
-When `CHANGELOG.md` exists and the current task produces changelog-worthy work:
+For projects using this baseline:
 
-1. Update the unreleased section before committing.
-2. Describe the practical issue or capability first.
-3. Use the repository's established categories and style; otherwise use the scannable bold-anchor format above.
-4. Keep the entry scoped to task-owned changes.
-5. Run any repository-provided changelog validator, release-note extractor, formatter, or test that applies.
-6. Review the changelog together with the code/documentation diff so the description matches the implemented behavior.
-
-If the repository does not maintain a changelog, do not create one solely because this template was installed unless the user or repository policy requests it.
+1. Preserve an existing changelog/equivalent; if none exists, initialize root `CHANGELOG.md` before the next agent-created commit unless explicitly opted out.
+2. For changelog-worthy work, update the unreleased section before committing.
+3. Describe the practical issue or capability first.
+4. Use the repository's established categories and style; otherwise use the scannable bold-anchor format above.
+5. Keep the entry scoped to task-owned changes.
+6. Run any repository-provided changelog validator, release-note extractor, formatter, or test that applies.
+7. Review the changelog together with the code/documentation diff so the description matches the implemented behavior.
 
 ## Invariants and guardrails
 
