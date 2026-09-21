@@ -21,6 +21,7 @@ Install and adapt the reusable project-agent baseline, both project-local tool i
 ```text
 llm-wiki-agents.md-template/AGENTS.md
 llm-wiki-agents.md-template/llm-wiki/debug-tools.md
+llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md
 common-tools/discover-debug-tools.ps1
 common-tools/tool-paths.example.env
 security-audit-template/llm-wiki/debug-tools-security-audit.md
@@ -31,6 +32,7 @@ Target layout:
 ```text
 <project-root>/AGENTS.md
 <project-root>/llm-wiki/debug-tools.md
+<project-root>/llm-wiki/changelog-guidelines.md
 <project-root>/llm-wiki/debug-tools-security-audit.md
 <project-root>/tools/discover-debug-tools.ps1
 <project-root>/tool-paths.example.env
@@ -47,6 +49,7 @@ Before editing, inspect enough of the target repository to understand:
 - obvious build/test/lint/static-analysis commands
 - supported platforms/architectures when documented
 - existing `llm-wiki/` or equivalent project knowledge
+- existing `CHANGELOG.md`, release-note conventions, versioning, and changelog validation/extraction automation
 - debugger/tooling docs, symbol/artifact paths, and relevant local diagnostics when present
 - security-relevant binary/runtime tooling already documented or available
 
@@ -85,7 +88,17 @@ If it already exists:
 
 Treat machine-specific absolute paths as local examples unless the target project explicitly requires them.
 
-### 4. Integrate generic debug-tool discovery
+### 4. Integrate `llm-wiki/changelog-guidelines.md`
+
+Use `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as the reusable baseline.
+
+- If the target repository maintains `CHANGELOG.md` or equivalent release notes, adapt the page to its existing headings, categories, versioning, validation commands, and release automation.
+- Preserve project-specific changelog rules that are stricter or materially different.
+- Keep the core behavior: describe observable issues/capabilities first, keep entries highly scannable, update the unreleased section during development, and avoid release-note drift.
+- Do not copy another project's product names, release tags, versions, scripts, or CI commands.
+- If the target repository does not maintain a changelog, install the guidance page but do not create `CHANGELOG.md` solely because of the default integration.
+
+### 5. Integrate generic debug-tool discovery
 
 Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/discover-debug-tools.ps1`.
 
@@ -95,7 +108,7 @@ Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/disco
 - Do not commit the generated manifest or incidental machine-specific absolute paths unless the target repository explicitly intends to track them.
 - Do not duplicate Windows SDK/MSVC path-generation logic into security-specific scripts or wiki pages; keep generic discovery centralized.
 
-### 5. Integrate `llm-wiki/debug-tools-security-audit.md`
+### 6. Integrate `llm-wiki/debug-tools-security-audit.md`
 
 If `llm-wiki/debug-tools-security-audit.md` does not exist:
 
@@ -112,7 +125,7 @@ If it already exists:
 
 The presence of this file does **not** mean the full security-audit bundle has been installed and does not authorize running tool installers or intrusive diagnostics.
 
-### 6. Preserve existing project knowledge
+### 7. Preserve existing project knowledge
 
 When existing `llm-wiki/` pages are present:
 
@@ -121,11 +134,12 @@ When existing `llm-wiki/` pages are present:
 - repair only clear conflicts introduced by the integration
 - avoid rewriting unrelated project history or diagnostic notes
 
-### 7. Validate the integration
+### 8. Validate the integration
 
 Before finishing:
 
 - verify Markdown references and paths used by the integrated files
+- if the target maintains a changelog, verify that the adapted guidance matches its actual unreleased/release structure and only names validation/release commands that exist
 - confirm project-specific commands, paths, or tool claims added to the files actually exist or are documented
 - review the diff for accidental loss of existing instructions or project-local audit knowledge
 - do not claim a build/test or security tool passed unless you actually ran it
