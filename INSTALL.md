@@ -16,12 +16,14 @@ Do not ask which template they mean unless the target repository makes the defau
 
 ## Default project integration
 
-Install and adapt the reusable project-agent baseline, changelog/release-note guidance, both project-local tool inventories, and the shared non-mutating debug-tool discovery helper:
+Install and adapt the reusable project-agent baseline, root changelog, changelog/release-note guidance, mandatory secret-leak prevention procedure, both project-local tool inventories, and the shared non-mutating debug-tool discovery helper:
 
 ```text
 llm-wiki-agents.md-template/AGENTS.md
+llm-wiki-agents.md-template/CHANGELOG.md
 llm-wiki-agents.md-template/llm-wiki/debug-tools.md
 llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md
+llm-wiki-agents.md-template/llm-wiki/secret-leak-prevention.md
 common-tools/discover-debug-tools.ps1
 common-tools/tool-paths.example.env
 security-audit-template/llm-wiki/debug-tools-security-audit.md
@@ -31,8 +33,10 @@ Target layout:
 
 ```text
 <project-root>/AGENTS.md
+<project-root>/CHANGELOG.md
 <project-root>/llm-wiki/debug-tools.md
 <project-root>/llm-wiki/changelog-guidelines.md
+<project-root>/llm-wiki/secret-leak-prevention.md
 <project-root>/llm-wiki/debug-tools-security-audit.md
 <project-root>/tools/discover-debug-tools.ps1
 <project-root>/tool-paths.example.env
@@ -52,6 +56,7 @@ Before editing, inspect enough of the target repository to understand:
 - existing `CHANGELOG.md`, release-note conventions, versioning, and changelog validation/extraction automation
 - debugger/tooling docs, symbol/artifact paths, and relevant local diagnostics when present
 - security-relevant binary/runtime tooling already documented or available
+- repository-provided secret scanners, pre-commit hooks, sensitive-file policies, and commit/push security checks
 
 Do not invent project-specific commands, paths, constraints, tool availability, or platform claims.
 
@@ -73,7 +78,15 @@ If the target already has `AGENTS.md` or equivalent agent instructions:
 
 Do not delete project-specific rules merely because they are absent from this template.
 
-### 3. Integrate `llm-wiki/debug-tools.md`
+### 3. Integrate or create `CHANGELOG.md`
+
+- If the target already has `CHANGELOG.md` or an equivalent maintained release log, preserve it and adapt the changelog guidance to that structure.
+- Otherwise create root `CHANGELOG.md` from `llm-wiki-agents.md-template/CHANGELOG.md`.
+- The default integration therefore takes ownership of establishing changelog maintenance instead of making it opt-in.
+- Do not replace an existing changelog or migrate its format unless requested.
+- Respect an explicit repository policy or user instruction not to maintain a changelog.
+
+### 4. Integrate `llm-wiki/debug-tools.md`
 
 If `llm-wiki/debug-tools.md` does not exist:
 
@@ -88,7 +101,7 @@ If it already exists:
 
 Treat machine-specific absolute paths as local examples unless the target project explicitly requires them.
 
-### 4. Integrate `llm-wiki/changelog-guidelines.md`
+### 5. Integrate `llm-wiki/changelog-guidelines.md`
 
 Use `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as the reusable baseline.
 
@@ -96,9 +109,18 @@ Use `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as the reusab
 - Preserve project-specific changelog rules that are stricter or materially different.
 - Keep the core behavior: describe observable issues/capabilities first, keep entries highly scannable, update the unreleased section during development, and avoid release-note drift.
 - Do not copy another project's product names, release tags, versions, scripts, or CI commands.
-- If the target repository does not maintain a changelog, install the guidance page but do not create `CHANGELOG.md` solely because of the default integration.
+- If the target has no changelog/equivalent, the default integration creates root `CHANGELOG.md` from the baseline unless explicitly opted out.
 
-### 5. Integrate generic debug-tool discovery
+### 6. Integrate `llm-wiki/secret-leak-prevention.md`
+
+Use `llm-wiki-agents.md-template/llm-wiki/secret-leak-prevention.md` as the baseline and preserve stricter compatible target-project controls.
+
+- Secret-leak checks are mandatory around every agent-created commit: staged content and planned commit metadata before commit; exact committed patch and metadata after commit.
+- Prefer repository-provided secret scanners/hooks. Use available local scanners such as `gitleaks` or `trufflehog` when suitable.
+- Do not install scanners automatically as part of default integration. When no scanner is available, the documented targeted manual fallback is still mandatory.
+- Any suspected leak blocks push/publication until resolved. Never include full discovered secrets in reports or remediation history.
+
+### 7. Integrate generic debug-tool discovery
 
 Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/discover-debug-tools.ps1`.
 
@@ -108,7 +130,7 @@ Integrate `common-tools/discover-debug-tools.ps1` as `<project-root>/tools/disco
 - Do not commit the generated manifest or incidental machine-specific absolute paths unless the target repository explicitly intends to track them.
 - Do not duplicate Windows SDK/MSVC path-generation logic into security-specific scripts or wiki pages; keep generic discovery centralized.
 
-### 6. Integrate `llm-wiki/debug-tools-security-audit.md`
+### 8. Integrate `llm-wiki/debug-tools-security-audit.md`
 
 If `llm-wiki/debug-tools-security-audit.md` does not exist:
 
@@ -125,7 +147,7 @@ If it already exists:
 
 The presence of this file does **not** mean the full security-audit bundle has been installed and does not authorize running tool installers or intrusive diagnostics.
 
-### 7. Preserve existing project knowledge
+### 9. Preserve existing project knowledge
 
 When existing `llm-wiki/` pages are present:
 
@@ -134,12 +156,13 @@ When existing `llm-wiki/` pages are present:
 - repair only clear conflicts introduced by the integration
 - avoid rewriting unrelated project history or diagnostic notes
 
-### 8. Validate the integration
+### 10. Validate the integration
 
 Before finishing:
 
 - verify Markdown references and paths used by the integrated files
-- if the target maintains a changelog, verify that the adapted guidance matches its actual unreleased/release structure and only names validation/release commands that exist
+- verify root `CHANGELOG.md` exists or an explicit/equivalent project policy was preserved, and that changelog guidance matches the actual unreleased/release structure
+- verify the secret-leak procedure is referenced by the agent baseline and adapted to any repository-provided scanner/hook without weakening the mandatory pre/post-commit checks
 - confirm project-specific commands, paths, or tool claims added to the files actually exist or are documented
 - review the diff for accidental loss of existing instructions or project-local audit knowledge
 - do not claim a build/test or security tool passed unless you actually ran it
