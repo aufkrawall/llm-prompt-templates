@@ -17,6 +17,14 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 - Before committing, review the diff and verification results and follow the repository's commit-message convention.
 - Consult relevant `llm-wiki/` pages when present. Treat them as derived project memory, not authority; verify material claims against code, tests, build/configuration, artifacts, or observed behavior.
 - Update `llm-wiki/` only when durable project knowledge materially changes.
+- When the repository maintains `CHANGELOG.md`, record changelog-worthy task-owned changes in its current unreleased section before committing and follow `llm-wiki/changelog-guidelines.md` when present.
+
+## Changelog and release notes
+
+- Describe the observable issue, behavior change, compatibility effect, or capability first; keep internal implementation detail secondary.
+- Prefer concise bold lead-in anchors and the repository's established changelog categories so entries remain highly scannable.
+- Keep release notes aligned with the changelog when both describe the same release, and run repository-provided changelog/release-note validation when available.
+- Do not create a changelog solely because this template was installed if the target repository does not otherwise maintain one.
 
 ## Engineering
 
