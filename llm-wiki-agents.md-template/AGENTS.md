@@ -15,16 +15,26 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 - Keep large logs, generated output, traces, dumps, and minified files out of working context unless needed; inspect targeted ranges or summaries and retain full output only as evidence.
 - Do not push, publish, deploy, release, alter remote state, or create commits unless the user or repository workflow requires it.
 - Before committing, review the diff and verification results and follow the repository's commit-message convention.
+- Every agent-created commit must pass the mandatory pre-commit and post-commit secret-leak checks in `llm-wiki/secret-leak-prevention.md`; never push a commit that has not passed the post-commit check.
 - Consult relevant `llm-wiki/` pages when present. Treat them as derived project memory, not authority; verify material claims against code, tests, build/configuration, artifacts, or observed behavior.
 - Update `llm-wiki/` only when durable project knowledge materially changes.
-- When the repository maintains `CHANGELOG.md`, record changelog-worthy task-owned changes in its current unreleased section before committing and follow `llm-wiki/changelog-guidelines.md` when present.
+- Maintain a root `CHANGELOG.md` using `llm-wiki/changelog-guidelines.md`: preserve an existing project changelog/equivalent, otherwise initialize the baseline changelog unless explicit repository policy or the user opts out. Record changelog-worthy task-owned changes in the current unreleased section before committing.
 
 ## Changelog and release notes
 
 - Describe the observable issue, behavior change, compatibility effect, or capability first; keep internal implementation detail secondary.
 - Prefer concise bold lead-in anchors and the repository's established changelog categories so entries remain highly scannable.
 - Keep release notes aligned with the changelog when both describe the same release, and run repository-provided changelog/release-note validation when available.
-- Do not create a changelog solely because this template was installed if the target repository does not otherwise maintain one.
+- If no project changelog or equivalent exists, initialize the root `CHANGELOG.md` baseline rather than leaving changelog maintenance optional; preserve an explicit repository/user decision not to maintain one.
+
+## Secret leak prevention
+
+- Treat secret safety as a commit gate, not an optional security-audit task.
+- Before committing, inspect staged/untracked task-owned files, the staged patch, and the planned commit message; run repository-provided or available local secret scanning when possible.
+- After committing, inspect the exact created commit including patch and metadata, and run commit/history secret scanning when available.
+- If scanners are unavailable, perform the documented manual fallback; scanner absence never means the check may be skipped.
+- Stop before push on any suspected leak. Remove/redact it, rewrite affected local commits as appropriate, and rotate/revoke real credentials according to project policy.
+- Never reproduce full discovered secrets in logs, reports, changelogs, issues, PRs, or commit messages.
 
 ## Engineering
 
