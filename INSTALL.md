@@ -16,7 +16,7 @@ Do not ask which template they mean unless the target repository makes the defau
 
 ## Default project integration
 
-Install and adapt the reusable project-agent baseline, both project-local tool inventories, and the shared non-mutating debug-tool discovery helper:
+Install and adapt the reusable project-agent baseline, changelog/release-note guidance, both project-local tool inventories, and the shared non-mutating debug-tool discovery helper:
 
 ```text
 llm-wiki-agents.md-template/AGENTS.md
