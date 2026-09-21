@@ -19,13 +19,14 @@ In short:
 1. Inspect the target repository before copying anything.
 2. Integrate `llm-wiki-agents.md-template/AGENTS.md` as the project's root `AGENTS.md` baseline.
 3. Integrate `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` as `llm-wiki/debug-tools.md`.
-4. Integrate `common-tools/discover-debug-tools.ps1` as `tools/discover-debug-tools.ps1` and merge `common-tools/tool-paths.example.env` into the project's generic path-override example.
-5. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
-6. Adapt the files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
-7. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, `tools/`, path-override examples, or equivalent project knowledge.
-8. Preserve useful existing project-specific rules and diagnostics.
-9. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
-10. Do not run mutating tool installers merely as part of the default integration. The generic discovery helper itself is non-mutating.
+4. Integrate `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` as `llm-wiki/changelog-guidelines.md`, adapting it to the target project's existing changelog/release process when one exists.
+5. Integrate `common-tools/discover-debug-tools.ps1` as `tools/discover-debug-tools.ps1` and merge `common-tools/tool-paths.example.env` into the project's generic path-override example.
+6. Integrate `security-audit-template/llm-wiki/debug-tools-security-audit.md` as `llm-wiki/debug-tools-security-audit.md`.
+7. Adapt the files to the target repository using evidence from its build files, docs, source tree, existing instructions, and available tooling.
+8. **Merge; do not blindly overwrite** existing `AGENTS.md`, `llm-wiki/`, `tools/`, path-override examples, or equivalent project knowledge.
+9. Preserve useful existing project-specific rules and diagnostics.
+10. Do **not** install the general audit prompt, the rest of the security-audit bundle, CI, or system/global tools unless the user explicitly asks for them or clearly requests a full/audit installation.
+11. Do not run mutating tool installers merely as part of the default integration. The generic discovery helper itself is non-mutating.
 
 `INSTALL.md` is authoritative if there is any ambiguity.
 
@@ -45,6 +46,7 @@ In short:
 | `security-audit-template/install-security-audit-tools.sh` | Linux/macOS audit-tool detection/optional installation helper. |
 | `llm-wiki-agents.md-template/AGENTS.md` | Generic project-level coding-agent instruction baseline. |
 | `llm-wiki-agents.md-template/llm-wiki/debug-tools.md` | Generic project-local debugger/binary-tool inventory. |
+| `llm-wiki-agents.md-template/llm-wiki/changelog-guidelines.md` | Reusable changelog/release-note policy adapted from production handling: continuous unreleased updates, user-facing bold anchors, standard categories, and release-note parity. |
 
 ## Usage
 
@@ -56,7 +58,7 @@ For a new or existing project, the shortest intended request is simply:
 Add this to our project: https://github.com/aufkrawall/llm-prompt-templates
 ```
 
-An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, both `llm-wiki` tool inventories, and the non-mutating generic debug-tool discovery helper, while avoiding unrelated audit prompt/tool installation.
+An agent should follow `INSTALL.md`, inspect the project, merge/adapt the generic `AGENTS.md`, changelog guidance, both `llm-wiki` tool inventories, and the non-mutating generic debug-tool discovery helper, while avoiding unrelated audit prompt/tool installation.
 
 ### General quality audit
 
@@ -90,9 +92,10 @@ The security installer/detector scripts are optional. Generic debugger/developer
 
 ### Agent instructions / llm-wiki
 
-The default integration installs/adapts both generic tool inventories under `llm-wiki/`:
+The default integration installs/adapts the generic changelog guidance and both tool inventories under `llm-wiki/`:
 
 ```text
+llm-wiki/changelog-guidelines.md
 llm-wiki/debug-tools.md
 llm-wiki/debug-tools-security-audit.md
 ```
@@ -100,6 +103,7 @@ llm-wiki/debug-tools-security-audit.md
 Customize them with:
 
 - project build/test commands and platform priorities
+- existing changelog structure, release-note workflow, and any verified validation/extraction commands
 - non-negotiable technical constraints
 - local debugger, symbol, artifact, log, and capture paths
 - security-relevant binary/runtime inspection tools
