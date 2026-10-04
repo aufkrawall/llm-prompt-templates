@@ -16,7 +16,7 @@ Use this file as a project-level baseline. Add only repository-specific constrai
 - Do not push, publish, deploy, release, alter remote state, or create commits unless the user or repository workflow requires it.
 - Before committing, review the diff and verification results and follow the repository's commit-message convention.
 - When committing, use a concise title plus a short bullet-point body for non-trivial changes stating what changed and why.
-- Prefer a series of small, self-contained commits over one large commit so later review stays easy; each commit must independently hold together and pass verification and secret-leak checks.
+- Split up non-trivial tasks into a series of small, self-contained commits, not one large commit, so later review stays easy; each commit must independently hold together and pass verification and secret-leak checks.
 - Every agent-created commit must pass the mandatory pre-commit and post-commit secret-leak checks in `llm-wiki/secret-leak-prevention.md`; never push a commit that has not passed the post-commit check.
 - Consult relevant `llm-wiki/` pages when present. Treat them as derived project memory, not authority; verify material claims against code, tests, build/configuration, artifacts, or observed behavior.
 - Update `llm-wiki/` only when durable project knowledge materially changes.
